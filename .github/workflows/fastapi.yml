@@ -61,7 +61,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
           cache-dependency-glob: ${{ inputs.working-directory }}/uv.lock
@@ -129,7 +129,7 @@ jobs:
 
       - name: Upload OpenAPI artifact
         if: inputs.run-openapi-export
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: openapi
           path: ${{ inputs.working-directory }}/openapi.json

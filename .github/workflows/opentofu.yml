@@ -49,7 +49,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: opentofu/setup-opentofu@v1
+      - uses: opentofu/setup-opentofu@v2
         with:
           tofu_version: ${{ inputs.tofu-version }}
           cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
