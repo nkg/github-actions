@@ -1,0 +1,34 @@
+name: Auto-assign
+
+# Reusable: assigns new issues and PRs to one or more users.
+# Consumer stub triggers on `issues: [opened]` and `pull_request: [opened]`
+# and calls this workflow with `secrets: inherit`.
+
+on:
+  workflow_call:
+    inputs:
+      runs-on:
+        type: string
+        default: "ubuntu-latest"
+      assignees:
+        description: "Comma- or newline-separated GitHub usernames to assign"
+        type: string
+        default: "nkg"
+      number-of-assignees:
+        description: "Random subset to pick from `assignees` (0 = all)"
+        type: number
+        default: 0
+
+jobs:
+  auto-assign:
+    runs-on: ${{ inputs.runs-on }}
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Assign
+        uses: pozil/auto-assign-issue@v3.0.0
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          assignees: ${{ inputs.assignees }}
+          numOfAssignee: ${{ inputs.number-of-assignees }}

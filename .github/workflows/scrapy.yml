@@ -1,0 +1,115 @@
+name: Scrapy
+
+# Runs ruff + scrapy contract checks (`scrapy check`) for a uv-managed
+# Scrapy project. Builds on the python-uv setup pattern; kept standalone
+# rather than wrapping python-uv so spider-specific steps stay
+# discoverable as named inputs.
+
+on:
+  workflow_call:
+    inputs:
+      python-version:
+        type: string
+        default: "3.12"
+      working-directory:
+        description: "Directory containing scrapy.cfg"
+        type: string
+        default: "."
+      runs-on:
+        type: string
+        default: "ubuntu-latest"
+      extras:
+        description: "uv sync extras (comma-separated). Empty = no extras."
+        type: string
+        default: "dev"
+      run-lint:
+        type: boolean
+        default: true
+      run-tests:
+        description: "Run pytest if a tests/ dir exists"
+        type: boolean
+        default: true
+      run-spider-list:
+        description: "Run `scrapy list` (validates project + settings load)"
+        type: boolean
+        default: true
+      run-spider-check:
+        description: "Run `scrapy check` (spider contract tests)"
+        type: boolean
+        default: true
+      run-spider-smoke:
+        description: |
+          Run `scrapy crawl <spider-name>` with `-s CLOSESPIDER_ITEMCOUNT=1` to
+          fetch a single item end-to-end. Requires `spider-name` to be set.
+        type: boolean
+        default: false
+      spider-name:
+        description: "Spider id for the smoke crawl (only used when run-spider-smoke is true)"
+        type: string
+        default: ""
+
+jobs:
+  ci:
+    runs-on: ${{ inputs.runs-on }}
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+          cache-dependency-glob: ${{ inputs.working-directory }}/uv.lock
+
+      - name: Set up Python
+        run: uv python install ${{ inputs.python-version }}
+
+      - name: Install dependencies
+        env:
+          EXTRAS: ${{ inputs.extras }}
+        run: |
+          if [ -n "$EXTRAS" ]; then
+            EXTRAS_ARGS=""
+            IFS=',' read -ra E <<< "$EXTRAS"
+            for e in "${E[@]}"; do
+              EXTRAS_ARGS="$EXTRAS_ARGS --extra $e"
+            done
+            # shellcheck disable=SC2086
+            uv sync --frozen $EXTRAS_ARGS
+          else
+            uv sync --frozen
+          fi
+
+      - name: Lint
+        if: inputs.run-lint
+        run: |
+          uv run ruff format --check .
+          uv run ruff check .
+
+      - name: Test
+        if: inputs.run-tests
+        run: |
+          if [ -d tests ] || [ -d test ]; then
+            uv run pytest
+          else
+            echo "no tests/ or test/ dir, skipping pytest"
+          fi
+
+      - name: Scrapy list
+        if: inputs.run-spider-list
+        run: uv run scrapy list
+
+      - name: Scrapy check (contracts)
+        if: inputs.run-spider-check
+        run: uv run scrapy check
+
+      - name: Spider smoke crawl
+        if: inputs.run-spider-smoke && inputs.spider-name != ''
+        env:
+          SPIDER: ${{ inputs.spider-name }}
+        run: |
+          # CLOSESPIDER_ITEMCOUNT=1 stops after one scraped item, so this
+          # validates the full request/parse path without doing a real crawl.
+          uv run scrapy crawl "$SPIDER" -s CLOSESPIDER_ITEMCOUNT=1 -s LOG_LEVEL=INFO

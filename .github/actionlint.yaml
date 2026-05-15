@@ -1,0 +1,11 @@
+# Custom self-hosted runner labels recognised across the Sproncy fleet.
+# Without these, actionlint flags `runs-on: [self-hosted, linux, x64, dind]`
+# style entries as `runner-label` warnings because the label isn't in its
+# bundled list. See https://github.com/rhysd/actionlint/blob/main/docs/config.md
+self-hosted-runner:
+  labels:
+    # Docker-in-Docker runner — see Sproncy/GitHub-runners.
+    - dind
+    # Disk-heavy AI workload tier (storage, not CPU, is the constraint).
+    - fast
+    - slow

@@ -1,0 +1,100 @@
+name: Node (Bun)
+
+on:
+  workflow_call:
+    inputs:
+      bun-version:
+        description: "Bun version (e.g. 'latest', '1.1.x')"
+        type: string
+        default: "latest"
+      working-directory:
+        description: "Directory containing package.json / bun.lockb"
+        type: string
+        default: "."
+      runs-on:
+        description: "Runner label(s)"
+        type: string
+        default: "ubuntu-latest"
+      install-command:
+        description: "Install command"
+        type: string
+        default: "bun install --frozen-lockfile"
+      run-lint:
+        description: "Run lint script"
+        type: boolean
+        default: true
+      lint-command:
+        description: "Lint command"
+        type: string
+        default: "bun run lint"
+      run-typecheck:
+        description: "Run typecheck script"
+        type: boolean
+        default: true
+      typecheck-command:
+        description: "Typecheck command"
+        type: string
+        default: "bun run typecheck"
+      run-tests:
+        description: "Run test script"
+        type: boolean
+        default: true
+      test-command:
+        description: "Test command"
+        type: string
+        default: "bun test"
+      run-build:
+        description: "Run build script"
+        type: boolean
+        default: true
+      build-command:
+        description: "Build command"
+        type: string
+        default: "bun run build"
+      run-audit:
+        description: "Run `bun pm audit` against the resolved lockfile"
+        type: boolean
+        default: false
+      audit-args:
+        type: string
+        default: ""
+
+jobs:
+  ci:
+    runs-on: ${{ inputs.runs-on }}
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ inputs.bun-version }}
+
+      - name: Install
+        run: ${{ inputs.install-command }}
+
+      - name: Lint
+        if: inputs.run-lint
+        run: ${{ inputs.lint-command }}
+
+      - name: Typecheck
+        if: inputs.run-typecheck
+        run: ${{ inputs.typecheck-command }}
+
+      - name: Test
+        if: inputs.run-tests
+        run: ${{ inputs.test-command }}
+
+      - name: Build
+        if: inputs.run-build
+        run: ${{ inputs.build-command }}
+
+      - name: Audit
+        if: inputs.run-audit
+        env:
+          ARGS: ${{ inputs.audit-args }}
+        run: |
+          # shellcheck disable=SC2086
+          bun pm audit $ARGS

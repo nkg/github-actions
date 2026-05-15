@@ -1,0 +1,116 @@
+name: Elixir
+
+on:
+  workflow_call:
+    inputs:
+      elixir-version:
+        description: "Elixir version"
+        type: string
+        default: "1.17"
+      otp-version:
+        description: "OTP version"
+        type: string
+        default: "27"
+      working-directory:
+        description: "Directory containing mix.exs"
+        type: string
+        default: "."
+      runs-on:
+        description: "Runner label(s)"
+        type: string
+        default: "ubuntu-latest"
+      run-format-check:
+        description: "Run mix format --check-formatted"
+        type: boolean
+        default: true
+      run-credo:
+        description: "Run mix credo --strict"
+        type: boolean
+        default: true
+      run-dialyzer:
+        description: "Run mix dialyzer (slow; off by default)"
+        type: boolean
+        default: false
+      run-tests:
+        description: "Run mix test"
+        type: boolean
+        default: true
+      mix-env:
+        description: "MIX_ENV for the test step"
+        type: string
+        default: "test"
+      run-sobelow:
+        description: "Run sobelow (Phoenix security scanner)"
+        type: boolean
+        default: false
+      sobelow-args:
+        type: string
+        default: "--config"
+      run-hex-audit:
+        description: "Run `mix hex.audit` to flag retired/insecure deps"
+        type: boolean
+        default: false
+
+jobs:
+  ci:
+    runs-on: ${{ inputs.runs-on }}
+    env:
+      MIX_ENV: ${{ inputs.mix-env }}
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: erlef/setup-beam@v1
+        with:
+          elixir-version: ${{ inputs.elixir-version }}
+          otp-version: ${{ inputs.otp-version }}
+
+      - name: Cache deps and _build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ inputs.working-directory }}/deps
+            ${{ inputs.working-directory }}/_build
+          key: ${{ runner.os }}-mix-${{ inputs.otp-version }}-${{ inputs.elixir-version }}-${{ hashFiles(format('{0}/mix.lock', inputs.working-directory)) }}
+          restore-keys: |
+            ${{ runner.os }}-mix-${{ inputs.otp-version }}-${{ inputs.elixir-version }}-
+
+      - name: Install dependencies
+        run: |
+          mix local.hex --force
+          mix local.rebar --force
+          mix deps.get
+
+      - name: Compile (warnings as errors)
+        run: mix compile --warnings-as-errors
+
+      - name: Format check
+        if: inputs.run-format-check
+        run: mix format --check-formatted
+
+      - name: Credo
+        if: inputs.run-credo
+        run: mix credo --strict
+
+      - name: Dialyzer
+        if: inputs.run-dialyzer
+        run: mix dialyzer
+
+      - name: Test
+        if: inputs.run-tests
+        run: mix test
+
+      - name: hex.audit
+        if: inputs.run-hex-audit
+        run: mix hex.audit
+
+      - name: sobelow
+        if: inputs.run-sobelow
+        env:
+          ARGS: ${{ inputs.sobelow-args }}
+        run: |
+          mix archive.install hex sobelow --force
+          # shellcheck disable=SC2086
+          mix sobelow $ARGS

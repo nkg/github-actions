@@ -1,0 +1,28 @@
+name: Self-test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  # Dogfood: lint this repo's workflows with our own reusable.
+  lint:
+    uses: ./.github/workflows/lint-workflows.yml
+    with:
+      yamllint-paths: ".github/ .yamllint.yml"
+
+  composite-actions-syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pyyaml
+      - name: Validate composite action metadata
+        run: |
+          for action in .github/actions/*/action.yml; do
+            echo "Checking $action"
+            python -c "import yaml; yaml.safe_load(open('$action'))"
+          done

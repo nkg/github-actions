@@ -1,0 +1,68 @@
+name: Claude code review
+
+# Reusable wrapper around anthropics/claude-code-action for automated PR
+# reviews. Consumer stub triggers on pull_request and calls this workflow.
+
+on:
+  workflow_call:
+    inputs:
+      runs-on:
+        type: string
+        default: "ubuntu-latest"
+      timeout-minutes:
+        type: number
+        default: 30
+      filter-authors:
+        description: |
+          Optional comma-separated list of PR authors to filter on (others skipped).
+          Example: "external-contributor,new-developer". Empty = review every PR.
+        type: string
+        default: ""
+      filter-first-time-only:
+        description: "Only review PRs from FIRST_TIME_CONTRIBUTOR / FIRST_TIMER"
+        type: boolean
+        default: false
+      plugin-marketplace:
+        type: string
+        default: "https://github.com/anthropics/claude-code.git"
+      plugins:
+        type: string
+        default: "code-review@claude-code-plugins"
+      prompt:
+        description: "Override the default code-review prompt"
+        type: string
+        default: ""
+      claude-args:
+        type: string
+        default: ""
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN:
+        required: true
+
+jobs:
+  review:
+    # Author/contributor filter is opt-in. By default every PR gets reviewed.
+    if: |
+      (inputs.filter-authors == '' && !inputs.filter-first-time-only) ||
+      contains(inputs.filter-authors, github.event.pull_request.user.login) ||
+      (inputs.filter-first-time-only && (github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR' || github.event.pull_request.author_association == 'FIRST_TIMER'))
+    runs-on: ${{ inputs.runs-on }}
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Run Claude Code Review
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          plugin_marketplaces: ${{ inputs.plugin-marketplace }}
+          plugins: ${{ inputs.plugins }}
+          prompt: ${{ inputs.prompt != '' && inputs.prompt || format('/code-review:code-review {0}/pull/{1}', github.repository, github.event.pull_request.number) }}
+          claude_args: ${{ inputs.claude-args }}

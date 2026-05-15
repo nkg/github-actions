@@ -1,0 +1,173 @@
+name: SOPS audit
+
+# Generalised from sproncy-secrets/sops-audit.yml. Verifies that files
+# matching the encrypted-glob are SOPS-encrypted, scans the tree for
+# plaintext-secret patterns, optionally runs shellcheck and a CHANGELOG
+# diff check when .sops.yaml age recipients change.
+
+on:
+  workflow_call:
+    inputs:
+      runs-on:
+        type: string
+        default: "ubuntu-latest"
+      encrypted-glob:
+        description: "find -name pattern for files that MUST be SOPS-encrypted"
+        type: string
+        default: "*.encrypted"
+      plaintext-scan:
+        description: "Scan tracked .env/.yml/.yaml/.json/.toml for plaintext secrets"
+        type: boolean
+        default: true
+      plaintext-scan-exclude:
+        description: "Newline-separated case-style globs to skip (e.g. 'tests/fixtures/*')"
+        type: string
+        default: ""
+      shellcheck:
+        description: "Run shellcheck against shellcheck-paths"
+        type: boolean
+        default: false
+      shellcheck-paths:
+        description: "Newline-separated paths to recursively shellcheck. Default: scripts/ if present."
+        type: string
+        default: ""
+      sops-config-changelog:
+        description: "Require an entry in changelog-path when .sops.yaml age recipients change"
+        type: boolean
+        default: false
+      changelog-path:
+        type: string
+        default: "CHANGELOG-keys.md"
+
+jobs:
+  audit:
+    runs-on: ${{ inputs.runs-on }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          # sops-config-changelog needs history to diff against base.
+          fetch-depth: ${{ inputs.sops-config-changelog && 0 || 1 }}
+
+      - name: Verify SOPS encryption
+        env:
+          GLOB: ${{ inputs.encrypted-glob }}
+        run: |
+          set -euo pipefail
+          found=0
+          fail=0
+          # Regex: anchored ^sops:, ^sops_, or quoted "sops" key (JSON form)
+          while IFS= read -r -d '' file; do
+            found=1
+            if grep -q -E '^sops:|^sops_|"sops"' "$file"; then
+              echo "::notice file=$file::encrypted"
+            elif [ ! -s "$file" ]; then
+              echo "::warning file=$file::empty placeholder, skipping"
+            else
+              echo "::error file=$file::NOT encrypted"
+              fail=1
+            fi
+          done < <(find . -name "$GLOB" -type f -not -path './.git/*' -print0)
+          if [ "$found" -eq 0 ]; then
+            echo "::warning::no files match $GLOB"
+          fi
+          exit "$fail"
+
+      - name: Scan for plaintext secrets
+        if: inputs.plaintext-scan
+        env:
+          EXCLUDES: ${{ inputs.plaintext-scan-exclude }}
+        run: |
+          set -euo pipefail
+          # ERE that matches common secret-assignment forms in config files.
+          # Anchors on the key name so prose hits like "this is a token for X"
+          # are excluded by the [:=] requirement.
+          pattern='(password|passwd|secret|api[_-]?key|token|private[_-]?key|access[_-]?key)[[:space:]]*[:=][[:space:]]*["'"'"']?[A-Za-z0-9/_+.=-]{8,}'
+          any=0
+          while IFS= read -r file; do
+            # Skip via case-globs from input.
+            if [ -n "$EXCLUDES" ]; then
+              skip=0
+              while IFS= read -r excl; do
+                [ -z "$excl" ] && continue
+                # shellcheck disable=SC2254
+                case "$file" in $excl) skip=1; break ;; esac
+              done <<< "$EXCLUDES"
+              [ "$skip" -eq 1 ] && continue
+            fi
+            case "$file" in
+              *.env|*.yml|*.yaml|*.json|*.toml) ;;
+              *) continue ;;
+            esac
+            # Don't flag SOPS-encrypted files (the ciphertext can look secret-ish).
+            if grep -q -E '^sops:|^sops_|"sops"' "$file" 2>/dev/null; then
+              continue
+            fi
+            if grep -E -i -q "$pattern" "$file" 2>/dev/null; then
+              echo "::error file=$file::potential plaintext secret"
+              grep -E -i -n "$pattern" "$file" | head -5
+              any=1
+            fi
+          done < <(git ls-files)
+          if [ "$any" -eq 1 ]; then exit 1; fi
+          echo "no plaintext secrets detected"
+
+      - name: Install shellcheck
+        if: inputs.shellcheck
+        run: |
+          if ! command -v shellcheck >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y --no-install-recommends shellcheck
+          fi
+
+      - name: Run shellcheck
+        if: inputs.shellcheck
+        env:
+          PATHS: ${{ inputs.shellcheck-paths }}
+        run: |
+          set -euo pipefail
+          if [ -z "$PATHS" ]; then
+            if [ -d scripts ]; then
+              PATHS="scripts"
+            else
+              echo "no scripts/ directory and no shellcheck-paths input — skipping"
+              exit 0
+            fi
+          fi
+          # Lint the explicit set of paths; -x lets it follow `source` directives.
+          # shellcheck disable=SC2086
+          find $PATHS -type f \( -name '*.sh' -o -name '*.bash' \) -print0 \
+            | xargs -0 -r shellcheck -x --source-path=SCRIPTDIR
+
+      - name: Check .sops.yaml CHANGELOG
+        if: inputs.sops-config-changelog
+        env:
+          CHANGELOG: ${{ inputs.changelog-path }}
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            base="${{ github.event.pull_request.base.sha }}"
+            head="${{ github.event.pull_request.head.sha }}"
+          else
+            base="${{ github.event.before }}"
+            head="${{ github.sha }}"
+            if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ]; then
+              echo "first push to ref — skipping changelog diff check"
+              exit 0
+            fi
+          fi
+          if ! git diff --name-only "$base" "$head" -- .sops.yaml | grep -q .; then
+            echo ".sops.yaml unchanged — no changelog entry required"
+            exit 0
+          fi
+          if ! git diff -U0 "$base" "$head" -- .sops.yaml | grep -E '^[+-][[:space:]]*age:' >/dev/null; then
+            echo ".sops.yaml changed but no age recipients touched — no changelog entry required"
+            exit 0
+          fi
+          if git diff --name-only "$base" "$head" -- "$CHANGELOG" | grep -q .; then
+            echo "$CHANGELOG was updated alongside .sops.yaml age recipients"
+          else
+            echo "::error::$CHANGELOG MUST be updated when .sops.yaml age recipients change"
+            exit 1
+          fi

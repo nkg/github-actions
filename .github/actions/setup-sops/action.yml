@@ -1,0 +1,94 @@
+name: Setup SOPS
+description: Install sops + age (with arch detection), optionally decrypt a file using an age private key
+
+inputs:
+  sops-version:
+    description: "sops version (e.g. v3.9.1)"
+    required: false
+    default: "v3.9.1"
+  age-version:
+    description: "age version (e.g. v1.2.0)"
+    required: false
+    default: "v1.2.0"
+  age-key:
+    description: "age private key (multi-line). Written to ~/.config/sops/age/keys.txt"
+    required: false
+    default: ""
+  decrypt-file:
+    description: "Path to a SOPS-encrypted file to decrypt in-place after setup"
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Detect arch
+      id: arch
+      shell: bash
+      run: |
+        case "$RUNNER_OS" in
+          Linux) os=linux ;;
+          macOS) os=darwin ;;
+          *) echo "::error::unsupported RUNNER_OS=$RUNNER_OS"; exit 1 ;;
+        esac
+        case "$(uname -m)" in
+          x86_64) arch=amd64 ;;
+          aarch64|arm64) arch=arm64 ;;
+          *) echo "::error::unsupported arch $(uname -m)"; exit 1 ;;
+        esac
+        echo "os=$os" >> "$GITHUB_OUTPUT"
+        echo "arch=$arch" >> "$GITHUB_OUTPUT"
+
+    - name: Install sops
+      shell: bash
+      env:
+        VERSION: ${{ inputs.sops-version }}
+        OS: ${{ steps.arch.outputs.os }}
+        ARCH: ${{ steps.arch.outputs.arch }}
+      run: |
+        set -euo pipefail
+        url="https://github.com/getsops/sops/releases/download/${VERSION}/sops-${VERSION}.${OS}.${ARCH}"
+        # ${VERSION}.${OS}.${ARCH} asset scheme is consistent from sops v3.8+
+        # across linux/darwin × amd64/arm64. Download to a temp file first
+        # (no sudo on the curl), then `sudo install` to set mode + path atomically.
+        tmpfile=$(mktemp)
+        curl -sSfL -o "$tmpfile" "$url"
+        sudo install -m 0755 "$tmpfile" /usr/local/bin/sops
+        rm -f "$tmpfile"
+        sops --version
+
+    - name: Install age
+      shell: bash
+      env:
+        VERSION: ${{ inputs.age-version }}
+        OS: ${{ steps.arch.outputs.os }}
+        ARCH: ${{ steps.arch.outputs.arch }}
+      run: |
+        set -euo pipefail
+        url="https://github.com/FiloSottile/age/releases/download/${VERSION}/age-${VERSION}-${OS}-${ARCH}.tar.gz"
+        # Per-run mktemp avoids collisions on persistent runners and isolates
+        # the tarball's internal layout from anything else under /tmp.
+        tmpdir=$(mktemp -d)
+        curl -sSfL "$url" | tar -xz -C "$tmpdir"
+        sudo install -m 0755 "$tmpdir/age/age" /usr/local/bin/age
+        sudo install -m 0755 "$tmpdir/age/age-keygen" /usr/local/bin/age-keygen
+        rm -rf "$tmpdir"
+        age --version
+
+    - name: Configure age key
+      if: inputs.age-key != ''
+      shell: bash
+      env:
+        AGE_KEY: ${{ inputs.age-key }}
+      run: |
+        mkdir -p "$HOME/.config/sops/age"
+        printf '%s' "$AGE_KEY" > "$HOME/.config/sops/age/keys.txt"
+        chmod 600 "$HOME/.config/sops/age/keys.txt"
+        echo "SOPS_AGE_KEY_FILE=$HOME/.config/sops/age/keys.txt" >> "$GITHUB_ENV"
+
+    - name: Decrypt file
+      if: inputs.decrypt-file != ''
+      shell: bash
+      env:
+        FILE: ${{ inputs.decrypt-file }}
+      run: sops --decrypt --in-place "$FILE"
