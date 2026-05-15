@@ -1,0 +1,85 @@
+name: OpenTofu
+
+on:
+  workflow_call:
+    inputs:
+      tofu-version:
+        description: "OpenTofu version"
+        type: string
+        default: "1.8.0"
+      working-directory:
+        description: "Directory containing the .tf files"
+        type: string
+        default: "."
+      runs-on:
+        description: "Runner label(s)"
+        type: string
+        default: "ubuntu-latest"
+      run-fmt:
+        description: "Run tofu fmt -check"
+        type: boolean
+        default: true
+      run-validate:
+        description: "Run tofu validate"
+        type: boolean
+        default: true
+      run-plan:
+        description: "Run tofu plan"
+        type: boolean
+        default: true
+      backend-config:
+        description: "Args passed to `tofu init -backend-config=...` (newline-separated)"
+        type: string
+        default: ""
+      var-file:
+        description: "Optional .tfvars file to pass to plan"
+        type: string
+        default: ""
+    secrets:
+      TF_API_TOKEN:
+        description: "Optional remote backend token (Spacelift, Terraform Cloud, etc.)"
+        required: false
+
+jobs:
+  ci:
+    runs-on: ${{ inputs.runs-on }}
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: ${{ inputs.tofu-version }}
+          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+
+      - name: tofu fmt
+        if: inputs.run-fmt
+        run: tofu fmt -check -recursive
+
+      - name: tofu init
+        run: |
+          ARGS="-input=false"
+          if [ -n "${{ inputs.backend-config }}" ]; then
+            while IFS= read -r line; do
+              [ -z "$line" ] && continue
+              ARGS="$ARGS -backend-config=$line"
+            done <<< "${{ inputs.backend-config }}"
+          fi
+          # shellcheck disable=SC2086
+          tofu init $ARGS
+
+      - name: tofu validate
+        if: inputs.run-validate
+        run: tofu validate
+
+      - name: tofu plan
+        if: inputs.run-plan
+        run: |
+          ARGS="-input=false -no-color"
+          if [ -n "${{ inputs.var-file }}" ]; then
+            ARGS="$ARGS -var-file=${{ inputs.var-file }}"
+          fi
+          # shellcheck disable=SC2086
+          tofu plan $ARGS

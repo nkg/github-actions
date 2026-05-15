@@ -1,0 +1,66 @@
+name: Claude on-demand
+
+# Reusable wrapper around anthropics/claude-code-action. The consumer
+# repo's stub declares the triggers (issue_comment, pull_request_review_comment,
+# issues, pull_request_review) and calls this workflow with secrets: inherit.
+# The job's `if:` filter is intentionally inside the reusable workflow so
+# consumers don't have to copy-paste the mention-detection expression.
+
+on:
+  workflow_call:
+    inputs:
+      runs-on:
+        description: "Runner label(s) (default: ubuntu-latest; pass a self-hosted label list to route to your pool)"
+        type: string
+        default: "ubuntu-latest"
+      timeout-minutes:
+        description: "Job timeout"
+        type: number
+        default: 30
+      trigger-phrase:
+        description: "Phrase that must appear in comment/issue body to trigger the bot"
+        type: string
+        default: "@claude"
+      claude-args:
+        description: "Extra args forwarded to claude-code-action (see https://github.com/anthropics/claude-code-action)"
+        type: string
+        default: ""
+      prompt:
+        description: "Optional fixed prompt. When set, the bot ignores the comment body and runs this prompt."
+        type: string
+        default: ""
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN:
+        description: "Claude Code OAuth token"
+        required: true
+
+jobs:
+  claude:
+    # Only run when the trigger phrase appears in the relevant event field.
+    # Bot accounts can author legitimate comments, so we don't filter on actor.
+    if: |
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, inputs.trigger-phrase)) ||
+      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, inputs.trigger-phrase)) ||
+      (github.event_name == 'pull_request_review' && contains(github.event.review.body, inputs.trigger-phrase)) ||
+      (github.event_name == 'issues' && (contains(github.event.issue.body, inputs.trigger-phrase) || contains(github.event.issue.title, inputs.trigger-phrase)))
+    runs-on: ${{ inputs.runs-on }}
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+      id-token: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Run Claude Code
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          additional_permissions: |
+            actions: read
+          prompt: ${{ inputs.prompt }}
+          claude_args: ${{ inputs.claude-args }}

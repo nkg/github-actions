@@ -1,0 +1,68 @@
+name: Ansible
+
+on:
+  workflow_call:
+    inputs:
+      python-version:
+        description: "Python version (for ansible + ansible-lint)"
+        type: string
+        default: "3.12"
+      working-directory:
+        description: "Repo subdirectory containing playbooks"
+        type: string
+        default: "."
+      runs-on:
+        description: "Runner label(s)"
+        type: string
+        default: "ubuntu-latest"
+      run-lint:
+        description: "Run ansible-lint"
+        type: boolean
+        default: true
+      run-syntax-check:
+        description: "Run ansible-playbook --syntax-check"
+        type: boolean
+        default: true
+      playbooks:
+        description: "Newline-separated list of playbooks to syntax-check"
+        type: string
+        default: ""
+      requirements-file:
+        description: "Optional requirements.yml for ansible-galaxy install"
+        type: string
+        default: ""
+
+jobs:
+  ci:
+    runs-on: ${{ inputs.runs-on }}
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python-version }}
+          cache: pip
+
+      - name: Install ansible + ansible-lint
+        run: pip install ansible ansible-lint
+
+      - name: Install collections
+        if: inputs.requirements-file != ''
+        run: ansible-galaxy install -r ${{ inputs.requirements-file }}
+
+      - name: ansible-lint
+        if: inputs.run-lint
+        run: ansible-lint
+
+      - name: Syntax check
+        if: inputs.run-syntax-check && inputs.playbooks != ''
+        run: |
+          while IFS= read -r playbook; do
+            [ -z "$playbook" ] && continue
+            echo "::group::syntax-check $playbook"
+            ansible-playbook --syntax-check "$playbook"
+            echo "::endgroup::"
+          done <<< "${{ inputs.playbooks }}"

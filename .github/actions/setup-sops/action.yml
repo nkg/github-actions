@@ -1,0 +1,55 @@
+name: Setup SOPS
+description: Install sops + age, and optionally decrypt a file using an age private key
+
+inputs:
+  sops-version:
+    description: "sops version (e.g. v3.9.1)"
+    required: false
+    default: "v3.9.1"
+  age-version:
+    description: "age version (e.g. v1.2.0)"
+    required: false
+    default: "v1.2.0"
+  age-key:
+    description: "age private key (multi-line). Written to ~/.config/sops/age/keys.txt"
+    required: false
+    default: ""
+  decrypt-file:
+    description: "Path to a SOPS-encrypted file to decrypt in-place after setup"
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Install sops
+      shell: bash
+      run: |
+        SOPS_URL="https://github.com/getsops/sops/releases/download/${{ inputs.sops-version }}/sops-${{ inputs.sops-version }}.linux.amd64"
+        sudo curl -sSL -o /usr/local/bin/sops "$SOPS_URL"
+        sudo chmod +x /usr/local/bin/sops
+        sops --version
+
+    - name: Install age
+      shell: bash
+      run: |
+        AGE_URL="https://github.com/FiloSottile/age/releases/download/${{ inputs.age-version }}/age-${{ inputs.age-version }}-linux-amd64.tar.gz"
+        curl -sSL "$AGE_URL" | tar -xz -C /tmp
+        sudo mv /tmp/age/age /tmp/age/age-keygen /usr/local/bin/
+        age --version
+
+    - name: Configure age key
+      if: inputs.age-key != ''
+      shell: bash
+      env:
+        AGE_KEY: ${{ inputs.age-key }}
+      run: |
+        mkdir -p "$HOME/.config/sops/age"
+        printf '%s' "$AGE_KEY" > "$HOME/.config/sops/age/keys.txt"
+        chmod 600 "$HOME/.config/sops/age/keys.txt"
+        echo "SOPS_AGE_KEY_FILE=$HOME/.config/sops/age/keys.txt" >> "$GITHUB_ENV"
+
+    - name: Decrypt file
+      if: inputs.decrypt-file != ''
+      shell: bash
+      run: sops --decrypt --in-place "${{ inputs.decrypt-file }}"

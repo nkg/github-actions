@@ -1,0 +1,31 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":semanticCommits",
+    ":dependencyDashboard"
+  ],
+  "schedule": ["before 9am on monday"],
+  "packageRules": [
+    {
+      "matchManagers": ["github-actions"],
+      "groupName": "github-actions",
+      "automerge": false
+    },
+    {
+      "description": "Pin OpenTofu/SOPS/age installer versions in composite actions",
+      "matchFileNames": [".github/actions/**/action.yml"],
+      "automerge": false
+    }
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Update pinned versions referenced as input defaults",
+      "fileMatch": ["^\\.github/(workflows|actions)/.+\\.ya?ml$"],
+      "matchStrings": [
+        "#\\s*renovate:\\s*datasource=(?<datasource>.+?)\\s+depName=(?<depName>.+?)(?:\\s+versioning=(?<versioning>.+?))?\\s*\\n\\s*default:\\s*[\"']?(?<currentValue>[^\"'\\s]+)"
+      ]
+    }
+  ]
+}

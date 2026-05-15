@@ -1,0 +1,72 @@
+name: Lint workflows
+
+# Reusable: actionlint + yamllint over the consumer's .github/ tree.
+# Generalised from sproncy-distillery/lint-workflows.yml.
+
+on:
+  workflow_call:
+    inputs:
+      runs-on:
+        type: string
+        default: "ubuntu-latest"
+      actionlint-version:
+        # renovate: datasource=github-releases depName=rhysd/actionlint
+        type: string
+        default: "1.7.7"
+      actionlint-ignore:
+        description: "Newline-separated -ignore patterns. Each becomes one `-ignore PATTERN` arg."
+        type: string
+        default: ""
+      run-yamllint:
+        type: boolean
+        default: true
+      yamllint-paths:
+        description: "Whitespace-separated paths to yamllint"
+        type: string
+        default: ".github/"
+
+jobs:
+  actionlint:
+    runs-on: ${{ inputs.runs-on }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install actionlint
+        env:
+          VERSION: ${{ inputs.actionlint-version }}
+        run: |
+          set -euo pipefail
+          bash <(curl -sSL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash) "$VERSION"
+          echo "$PWD" >> "$GITHUB_PATH"
+
+      - name: Run actionlint
+        env:
+          IGNORES: ${{ inputs.actionlint-ignore }}
+        run: |
+          set -euo pipefail
+          args=(-color)
+          while IFS= read -r ig; do
+            [ -z "$ig" ] && continue
+            args+=(-ignore "$ig")
+          done <<< "$IGNORES"
+          actionlint "${args[@]}"
+
+  yamllint:
+    if: inputs.run-yamllint
+    runs-on: ${{ inputs.runs-on }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install yamllint
+      - env:
+          PATHS: ${{ inputs.yamllint-paths }}
+        run: |
+          # Word-splitting on PATHS is intentional — input is whitespace-separated.
+          # shellcheck disable=SC2086
+          yamllint $PATHS

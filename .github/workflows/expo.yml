@@ -1,0 +1,95 @@
+name: Expo
+
+on:
+  workflow_call:
+    inputs:
+      bun-version:
+        description: "Bun version"
+        type: string
+        default: "latest"
+      working-directory:
+        description: "Directory containing app.json / app.config.ts"
+        type: string
+        default: "."
+      runs-on:
+        description: "Runner label(s)"
+        type: string
+        default: "ubuntu-latest"
+      run-lint:
+        description: "Run lint script"
+        type: boolean
+        default: true
+      run-typecheck:
+        description: "Run tsc --noEmit"
+        type: boolean
+        default: true
+      run-tests:
+        description: "Run jest"
+        type: boolean
+        default: true
+      run-eas-build:
+        description: "Trigger an EAS build (requires EXPO_TOKEN secret)"
+        type: boolean
+        default: false
+      eas-platform:
+        description: "EAS build platform: android, ios, or all"
+        type: string
+        default: "all"
+      eas-profile:
+        description: "EAS build profile (eas.json)"
+        type: string
+        default: "preview"
+      eas-non-interactive:
+        description: "Pass --non-interactive to eas build"
+        type: boolean
+        default: true
+    secrets:
+      EXPO_TOKEN:
+        description: "Expo access token (required only when run-eas-build is true)"
+        required: false
+
+jobs:
+  ci:
+    runs-on: ${{ inputs.runs-on }}
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ inputs.bun-version }}
+
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      - name: Lint
+        if: inputs.run-lint
+        run: bun run lint
+
+      - name: Typecheck
+        if: inputs.run-typecheck
+        run: bunx tsc --noEmit
+
+      - name: Test
+        if: inputs.run-tests
+        run: bun test
+
+      - name: Setup EAS
+        if: inputs.run-eas-build
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: EAS build
+        if: inputs.run-eas-build
+        run: |
+          ARGS="--platform ${{ inputs.eas-platform }} --profile ${{ inputs.eas-profile }}"
+          if [ "${{ inputs.eas-non-interactive }}" = "true" ]; then
+            ARGS="$ARGS --non-interactive"
+          fi
+          # Word-splitting is intentional — ARGS is a space-separated flag string.
+          # shellcheck disable=SC2086
+          eas build $ARGS
