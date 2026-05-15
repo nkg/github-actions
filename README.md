@@ -12,15 +12,20 @@ Sproncy org. Consumed by ~20 sibling repos via `uses:` pinned tags.
 │   ├── auto-assign.yml
 │   ├── claude.yml
 │   ├── claude-code-review.yml
+│   ├── compose-validate.yml
 │   ├── container-security.yml
 │   ├── docker-build.yml
 │   ├── elixir.yml
 │   ├── expo.yml
+│   ├── fastapi.yml
+│   ├── go.yml
+│   ├── komodo-deploy.yml
 │   ├── lint-workflows.yml
 │   ├── node-bun.yml
 │   ├── opentofu.yml
 │   ├── python-uv.yml
 │   ├── release.yml          # auto-moves the floating vMAJOR tag
+│   ├── scrapy.yml
 │   ├── secret-scan.yml
 │   ├── self-test.yml        # this repo's own CI
 │   └── sops-audit.yml
@@ -90,15 +95,20 @@ steps:
 
 ### Build & test
 
-| Workflow             | Purpose                                                        |
-|----------------------|----------------------------------------------------------------|
-| `python-uv.yml`      | uv-based Python: ruff, mypy, pytest with coverage              |
-| `node-bun.yml`       | Bun-based Node/TS: install, lint, typecheck, test, build       |
-| `elixir.yml`         | Mix: deps, format check, credo, test (matrix on otp/elixir)    |
-| `expo.yml`           | Expo/RN: install, lint, typecheck, optional EAS build          |
-| `opentofu.yml`       | OpenTofu: fmt, init, validate, plan (apply gated by env)       |
-| `ansible.yml`        | ansible-lint + syntax check                                    |
-| `docker-build.yml`   | buildx multi-arch build + push to GHCR                         |
+| Workflow              | Purpose                                                          |
+|-----------------------|------------------------------------------------------------------|
+| `python-uv.yml`       | uv-based Python: ruff, mypy, pytest with coverage                |
+| `fastapi.yml`         | python-uv + import smoke + OpenAPI export/diff                   |
+| `scrapy.yml`          | python-uv + `scrapy list` + `scrapy check` (+ optional smoke)    |
+| `node-bun.yml`        | Bun-based Node/TS: install, lint, typecheck, test, build         |
+| `elixir.yml`          | Mix: deps, format check, credo, test (matrix on otp/elixir)      |
+| `go.yml`              | Go: gofmt, vet, optional staticcheck/govulncheck, test+coverage  |
+| `expo.yml`            | Expo/RN: install, lint, typecheck, optional EAS build            |
+| `opentofu.yml`        | OpenTofu: fmt, init, validate, plan (apply gated by env)         |
+| `ansible.yml`         | ansible-lint + syntax check                                      |
+| `docker-build.yml`    | buildx multi-arch build + push to GHCR                           |
+| `compose-validate.yml`| `docker compose config` across profiles (DinD-safe pattern)      |
+| `komodo-deploy.yml`   | POST to Komodo's /api/execute; optional poll-until-complete      |
 
 ### Security
 

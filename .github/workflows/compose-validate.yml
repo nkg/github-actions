@@ -1,0 +1,80 @@
+name: Compose validate
+
+# Validates a docker-compose.yml across multiple profiles. Uses the
+# docker-create + docker-cp + docker-start pattern (rather than bind
+# mounts) so it works on DinD self-hosted runners where the host
+# daemon doesn't see the workflow's filesystem. See
+# Sproncy/monitoring_stack/.github/workflows/validate.yml for the
+# original write-up of why bind mounts break.
+
+on:
+  workflow_call:
+    inputs:
+      runs-on:
+        type: string
+        default: "ubuntu-latest"
+      compose-file:
+        type: string
+        default: "docker-compose.yml"
+      profiles:
+        description: "Newline-separated list of compose profiles to validate (in addition to the default)"
+        type: string
+        default: ""
+      env-vars:
+        description: |
+          Newline-separated KEY=VALUE pairs exported before `docker compose config`.
+          Useful for compose files that mark vars as required (`${VAR:?}`).
+        type: string
+        default: ""
+      extra-validators:
+        description: |
+          Newline-separated shell snippets run after compose validation.
+          Each is executed with the repo root as CWD.
+        type: string
+        default: ""
+
+jobs:
+  validate:
+    runs-on: ${{ inputs.runs-on }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Export env vars
+        if: inputs.env-vars != ''
+        env:
+          VARS: ${{ inputs.env-vars }}
+        run: |
+          while IFS= read -r kv; do
+            [ -z "$kv" ] && continue
+            echo "$kv" >> "$GITHUB_ENV"
+          done <<< "$VARS"
+
+      - name: Validate base compose config
+        env:
+          COMPOSE_FILE: ${{ inputs.compose-file }}
+        run: docker compose -f "$COMPOSE_FILE" config --quiet
+
+      - name: Validate each profile
+        if: inputs.profiles != ''
+        env:
+          COMPOSE_FILE: ${{ inputs.compose-file }}
+          PROFILES: ${{ inputs.profiles }}
+        run: |
+          while IFS= read -r profile; do
+            [ -z "$profile" ] && continue
+            echo "::group::profile $profile"
+            docker compose -f "$COMPOSE_FILE" --profile "$profile" config --quiet
+            echo "::endgroup::"
+          done <<< "$PROFILES"
+
+      - name: Extra validators
+        if: inputs.extra-validators != ''
+        env:
+          VALIDATORS: ${{ inputs.extra-validators }}
+        run: |
+          while IFS= read -r cmd; do
+            [ -z "$cmd" ] && continue
+            echo "::group::$cmd"
+            bash -c "$cmd"
+            echo "::endgroup::"
+          done <<< "$VALIDATORS"

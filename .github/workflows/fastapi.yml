@@ -1,0 +1,153 @@
+name: FastAPI
+
+# Runs the python-uv set of checks plus FastAPI-specific smoke tests:
+# - import the app (catches missing dep / config errors)
+# - export the OpenAPI schema
+# - optionally diff the exported schema against a baseline file (catches
+#   accidental breaking API changes)
+
+on:
+  workflow_call:
+    inputs:
+      python-version:
+        type: string
+        default: "3.12"
+      working-directory:
+        type: string
+        default: "."
+      runs-on:
+        type: string
+        default: "ubuntu-latest"
+      extras:
+        type: string
+        default: "dev"
+      app-module:
+        description: "Importable path to the FastAPI app (e.g. 'myapp.main:app')"
+        type: string
+        required: true
+      run-lint:
+        type: boolean
+        default: true
+      run-typecheck:
+        type: boolean
+        default: true
+      run-tests:
+        type: boolean
+        default: true
+      run-import-smoke:
+        description: "Confirm `from <module> import <app>` succeeds"
+        type: boolean
+        default: true
+      run-openapi-export:
+        description: "Export openapi.json as an artifact"
+        type: boolean
+        default: true
+      run-openapi-diff:
+        description: "Fail when exported openapi.json differs from openapi-baseline"
+        type: boolean
+        default: false
+      openapi-baseline:
+        description: "Path to the committed openapi.json baseline"
+        type: string
+        default: "openapi.json"
+
+jobs:
+  ci:
+    runs-on: ${{ inputs.runs-on }}
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+          cache-dependency-glob: ${{ inputs.working-directory }}/uv.lock
+
+      - run: uv python install ${{ inputs.python-version }}
+
+      - name: Install deps
+        env:
+          EXTRAS: ${{ inputs.extras }}
+        run: |
+          if [ -n "$EXTRAS" ]; then
+            EXTRAS_ARGS=""
+            IFS=',' read -ra E <<< "$EXTRAS"
+            for e in "${E[@]}"; do
+              EXTRAS_ARGS="$EXTRAS_ARGS --extra $e"
+            done
+            # shellcheck disable=SC2086
+            uv sync --frozen $EXTRAS_ARGS
+          else
+            uv sync --frozen
+          fi
+
+      - name: Lint
+        if: inputs.run-lint
+        run: |
+          uv run ruff format --check .
+          uv run ruff check .
+
+      - name: Typecheck
+        if: inputs.run-typecheck
+        run: uv run mypy .
+
+      - name: Test
+        if: inputs.run-tests
+        run: uv run pytest
+
+      - name: Import smoke
+        if: inputs.run-import-smoke
+        env:
+          APP: ${{ inputs.app-module }}
+        run: |
+          # Split "module:app" on the colon and confirm the symbol imports.
+          uv run python - <<PY
+          import importlib, os, sys
+          spec = os.environ["APP"]
+          if ":" not in spec:
+              print(f"app-module must be 'module:attr', got: {spec}", file=sys.stderr); sys.exit(1)
+          mod_path, attr = spec.split(":", 1)
+          mod = importlib.import_module(mod_path)
+          app = getattr(mod, attr)
+          print(f"imported {spec} -> {type(app).__module__}.{type(app).__name__}")
+          PY
+
+      - name: Export OpenAPI schema
+        if: inputs.run-openapi-export || inputs.run-openapi-diff
+        env:
+          APP: ${{ inputs.app-module }}
+        run: |
+          uv run python - <<'PY' > openapi.json
+          import importlib, json, os
+          mod_path, attr = os.environ["APP"].split(":", 1)
+          app = getattr(importlib.import_module(mod_path), attr)
+          print(json.dumps(app.openapi(), indent=2, sort_keys=True))
+          PY
+
+      - name: Upload OpenAPI artifact
+        if: inputs.run-openapi-export
+        uses: actions/upload-artifact@v4
+        with:
+          name: openapi
+          path: ${{ inputs.working-directory }}/openapi.json
+          if-no-files-found: error
+
+      - name: OpenAPI diff vs baseline
+        if: inputs.run-openapi-diff
+        env:
+          BASELINE: ${{ inputs.openapi-baseline }}
+        run: |
+          if [ ! -f "$BASELINE" ]; then
+            echo "::error::openapi-baseline not found: $BASELINE"
+            exit 1
+          fi
+          # Sort both for stable comparison (export already sorts, but be defensive).
+          uv run python -c "import json,sys; json.dump(json.load(open(sys.argv[1])), open(sys.argv[1]+'.sorted','w'), indent=2, sort_keys=True)" "$BASELINE"
+          if ! diff -u "${BASELINE}.sorted" openapi.json; then
+            echo "::error::OpenAPI schema drift vs $BASELINE"
+            exit 1
+          fi
+          echo "OpenAPI schema matches baseline"

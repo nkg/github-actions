@@ -100,6 +100,86 @@ jobs:
       requirements-file: ansible/requirements.yml
 ```
 
+## Go
+
+```yaml
+name: CI
+on: [push, pull_request]
+jobs:
+  go:
+    uses: sproncy/github-actions/.github/workflows/go.yml@v1
+    with:
+      go-version: "1.23"
+      run-staticcheck: true
+      run-govulncheck: true
+```
+
+## Scrapy
+
+```yaml
+name: CI
+on: [push, pull_request]
+jobs:
+  scrapy:
+    uses: sproncy/github-actions/.github/workflows/scrapy.yml@v1
+    with:
+      run-spider-smoke: true
+      spider-name: products
+```
+
+## FastAPI
+
+```yaml
+name: CI
+on: [push, pull_request]
+jobs:
+  api:
+    uses: sproncy/github-actions/.github/workflows/fastapi.yml@v1
+    with:
+      app-module: myapi.main:app
+      run-openapi-diff: true
+      openapi-baseline: docs/openapi.json
+```
+
+## Compose validate (DinD-safe)
+
+```yaml
+name: Validate compose
+on: [push, pull_request]
+jobs:
+  validate:
+    uses: sproncy/github-actions/.github/workflows/compose-validate.yml@v1
+    with:
+      compose-file: docker-compose.yml
+      profiles: |
+        logs
+        alerts
+        tracing
+      env-vars: |
+        GRAFANA_ADMIN_PASSWORD=ci-validate
+      runs-on: '[self-hosted, linux, x64]'
+```
+
+## Komodo deploy
+
+```yaml
+name: Deploy
+on:
+  push:
+    branches: [main]
+jobs:
+  komodo:
+    uses: sproncy/github-actions/.github/workflows/komodo-deploy.yml@v1
+    with:
+      komodo-url: https://komodo.example.com
+      operation: DeployStack
+      target: monitoring
+      wait-for-completion: true
+    secrets:
+      KOMODO_API_KEY: ${{ secrets.KOMODO_API_KEY }}
+      KOMODO_API_SECRET: ${{ secrets.KOMODO_API_SECRET }}
+```
+
 ---
 
 ## Security

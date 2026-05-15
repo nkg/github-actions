@@ -28,6 +28,23 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 - `.github/actionlint.yaml` — declares the Sproncy custom self-hosted
   runner labels (`dind`, `fast`, `slow`) so actionlint doesn't false-positive.
 
+- **Phase 2 — Stack coverage:**
+  - `go.yml` — gofmt, go vet, optional staticcheck + govulncheck,
+    test with race + coverage upload. `go-version: "mise"` reads the
+    pin from `.mise.toml`.
+  - `scrapy.yml` — uv-managed Scrapy project: ruff + pytest +
+    `scrapy list` + `scrapy check` (contract tests) + optional
+    single-item smoke crawl via `CLOSESPIDER_ITEMCOUNT=1`.
+  - `fastapi.yml` — python-uv set of checks plus app-import smoke,
+    OpenAPI schema export to an artifact, optional schema-drift diff
+    against a committed baseline.
+  - `compose-validate.yml` — generalised from `monitoring_stack`. Uses
+    `docker compose config --quiet` across profiles. Supports env-vars
+    input and extra-validator scripts.
+  - `komodo-deploy.yml` — POSTs to Komodo's `/api/execute` endpoint
+    (DeployStack, RunBuild, ExecuteProcedure, …). Optional
+    poll-until-complete via `/read GetUpdate`.
+
 ### Changed
 
 - `README.md` rewritten: replaced `<org>/ci` placeholder with the real

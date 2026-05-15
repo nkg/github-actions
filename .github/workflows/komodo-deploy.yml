@@ -1,0 +1,133 @@
+name: Komodo deploy
+
+# Triggers a deploy in Komodo (https://komo.do) by POSTing to its
+# `/api/execute` endpoint. Expects KOMODO_API_KEY and KOMODO_API_SECRET
+# to be supplied as secrets — Komodo authenticates each request with
+# both headers, not a single bearer token.
+#
+# Operation defaults to DeployStack but the input is generic so the
+# same workflow can trigger RunBuild, ExecuteProcedure, etc.
+
+on:
+  workflow_call:
+    inputs:
+      runs-on:
+        type: string
+        default: "ubuntu-latest"
+      komodo-url:
+        description: "Base URL of the Komodo Core instance (e.g. https://komodo.example.com)"
+        type: string
+        required: true
+      operation:
+        description: "Komodo execute operation type (DeployStack, RunBuild, ExecuteProcedure, …)"
+        type: string
+        default: "DeployStack"
+      target:
+        description: "Name or ID of the Komodo resource (stack, build, procedure, …)"
+        type: string
+        required: true
+      target-field:
+        description: "JSON field name Komodo expects for the target. Defaults to lowercase first word of operation."
+        type: string
+        default: ""
+      extra-params:
+        description: "Additional JSON params merged into the request body (object literal, e.g. '{\"services\":[\"api\"]}')"
+        type: string
+        default: "{}"
+      wait-for-completion:
+        description: "Poll the execution status until it finishes (or times out)"
+        type: boolean
+        default: false
+      poll-timeout-seconds:
+        type: number
+        default: 600
+      poll-interval-seconds:
+        type: number
+        default: 10
+    secrets:
+      KOMODO_API_KEY:
+        required: true
+      KOMODO_API_SECRET:
+        required: true
+
+jobs:
+  deploy:
+    runs-on: ${{ inputs.runs-on }}
+    steps:
+      - name: Trigger Komodo execute
+        id: trigger
+        env:
+          URL: ${{ inputs.komodo-url }}
+          OP: ${{ inputs.operation }}
+          TARGET: ${{ inputs.target }}
+          TARGET_FIELD: ${{ inputs.target-field }}
+          EXTRA: ${{ inputs.extra-params }}
+          KEY: ${{ secrets.KOMODO_API_KEY }}
+          SECRET: ${{ secrets.KOMODO_API_SECRET }}
+        run: |
+          set -euo pipefail
+          if [ -z "$TARGET_FIELD" ]; then
+            # DeployStack -> stack, RunBuild -> build, ExecuteProcedure -> procedure
+            TARGET_FIELD=$(echo "$OP" | sed -E 's/^(Deploy|Run|Execute)//' | tr '[:upper:]' '[:lower:]')
+          fi
+          body=$(jq -nc \
+            --arg op "$OP" \
+            --arg field "$TARGET_FIELD" \
+            --arg target "$TARGET" \
+            --argjson extra "$EXTRA" \
+            '{type: $op, params: ({($field): $target} + $extra)}')
+          echo "POST ${URL%/}/execute"
+          echo "body: $body"
+          response=$(curl -sSf -X POST "${URL%/}/execute" \
+            -H "Content-Type: application/json" \
+            -H "X-Api-Key: $KEY" \
+            -H "X-Api-Secret: $SECRET" \
+            --data "$body")
+          echo "response: $response"
+          # Komodo returns the update record; ID is at .id or ._id depending on version.
+          update_id=$(echo "$response" | jq -r '.id // ._id // empty')
+          echo "update_id=$update_id" >> "$GITHUB_OUTPUT"
+          if [ -z "$update_id" ]; then
+            echo "::warning::no update id in response, skipping poll"
+          fi
+
+      - name: Wait for completion
+        if: inputs.wait-for-completion && steps.trigger.outputs.update_id != ''
+        env:
+          URL: ${{ inputs.komodo-url }}
+          UPDATE_ID: ${{ steps.trigger.outputs.update_id }}
+          KEY: ${{ secrets.KOMODO_API_KEY }}
+          SECRET: ${{ secrets.KOMODO_API_SECRET }}
+          TIMEOUT: ${{ inputs.poll-timeout-seconds }}
+          INTERVAL: ${{ inputs.poll-interval-seconds }}
+        run: |
+          set -euo pipefail
+          deadline=$(( $(date +%s) + TIMEOUT ))
+          while :; do
+            now=$(date +%s)
+            if [ "$now" -ge "$deadline" ]; then
+              echo "::error::polling timed out after ${TIMEOUT}s"
+              exit 1
+            fi
+            body=$(jq -nc --arg id "$UPDATE_ID" '{type: "GetUpdate", params: {id: $id}}')
+            resp=$(curl -sSf -X POST "${URL%/}/read" \
+              -H "Content-Type: application/json" \
+              -H "X-Api-Key: $KEY" \
+              -H "X-Api-Secret: $SECRET" \
+              --data "$body" || true)
+            status=$(echo "$resp" | jq -r '.status // "Unknown"')
+            success=$(echo "$resp" | jq -r '.success // empty')
+            echo "[$(date +%H:%M:%S)] status=$status success=$success"
+            case "$status" in
+              Complete)
+                if [ "$success" = "true" ]; then
+                  echo "deploy completed successfully"
+                  exit 0
+                fi
+                echo "::error::Komodo reported failure"
+                echo "$resp" | jq .
+                exit 1
+                ;;
+            esac
+            sleep "$INTERVAL"
+          done
