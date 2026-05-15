@@ -43,6 +43,22 @@ on:
         description: "Upload coverage.xml as an artifact"
         type: boolean
         default: true
+      run-pip-audit:
+        description: "Run pip-audit against the resolved lockfile"
+        type: boolean
+        default: false
+      pip-audit-args:
+        description: "Extra args for pip-audit (e.g. '--ignore-vuln GHSA-…')"
+        type: string
+        default: ""
+      run-bandit:
+        description: "Run bandit static security scan"
+        type: boolean
+        default: false
+      bandit-args:
+        description: "Extra args for bandit (default scans the working-directory recursively)"
+        type: string
+        default: "-r ."
 
 jobs:
   ci:
@@ -51,7 +67,7 @@ jobs:
       run:
         working-directory: ${{ inputs.working-directory }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install uv
         uses: astral-sh/setup-uv@v4
@@ -98,3 +114,20 @@ jobs:
           name: coverage-${{ inputs.python-version }}
           path: ${{ inputs.working-directory }}/coverage.xml
           if-no-files-found: ignore
+
+      - name: pip-audit
+        if: inputs.run-pip-audit
+        env:
+          EXTRA: ${{ inputs.pip-audit-args }}
+        run: |
+          # pip-audit reads the resolved env; uv sync above populated .venv.
+          # shellcheck disable=SC2086
+          uvx pip-audit $EXTRA
+
+      - name: bandit
+        if: inputs.run-bandit
+        env:
+          ARGS: ${{ inputs.bandit-args }}
+        run: |
+          # shellcheck disable=SC2086
+          uvx bandit $ARGS

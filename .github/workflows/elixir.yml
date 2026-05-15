@@ -39,6 +39,17 @@ on:
         description: "MIX_ENV for the test step"
         type: string
         default: "test"
+      run-sobelow:
+        description: "Run sobelow (Phoenix security scanner)"
+        type: boolean
+        default: false
+      sobelow-args:
+        type: string
+        default: "--config"
+      run-hex-audit:
+        description: "Run `mix hex.audit` to flag retired/insecure deps"
+        type: boolean
+        default: false
 
 jobs:
   ci:
@@ -49,7 +60,7 @@ jobs:
       run:
         working-directory: ${{ inputs.working-directory }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: erlef/setup-beam@v1
         with:
@@ -90,3 +101,16 @@ jobs:
       - name: Test
         if: inputs.run-tests
         run: mix test
+
+      - name: hex.audit
+        if: inputs.run-hex-audit
+        run: mix hex.audit
+
+      - name: sobelow
+        if: inputs.run-sobelow
+        env:
+          ARGS: ${{ inputs.sobelow-args }}
+        run: |
+          mix archive.install hex sobelow --force
+          # shellcheck disable=SC2086
+          mix sobelow $ARGS

@@ -44,6 +44,26 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
   - `komodo-deploy.yml` — POSTs to Komodo's `/api/execute` endpoint
     (DeployStack, RunBuild, ExecuteProcedure, …). Optional
     poll-until-complete via `/read GetUpdate`.
+- **Phase 3a — Hardening existing workflows (all additions are opt-in,
+  default off — no behaviour change for current consumers):**
+  - `python-uv.yml`: `run-pip-audit`, `run-bandit` toggles
+    (`uvx pip-audit`, `uvx bandit`).
+  - `elixir.yml`: `run-hex-audit` (`mix hex.audit`),
+    `run-sobelow` (Phoenix security scanner via `mix archive.install`).
+  - `node-bun.yml`: `run-audit` toggle (`bun pm audit`).
+  - `docker-build.yml`: `run-trivy-scan` (scans pushed image by digest,
+    SARIF upload on non-PR), `sign-image` (cosign keyless OIDC, signs
+    every tag at the same digest), `generate-sbom` (anchore/sbom-action,
+    SPDX-JSON, 30-day artifact retention). All three short-circuit
+    silently when `push: false`. `id-token: write` and
+    `security-events: write` permissions are now always declared.
+
+### Fixed
+
+- `setup-sops` composite hardcoded `linux.amd64` — broken for arm and
+  macOS runners. Now detects `RUNNER_OS` + `uname -m`, supports
+  linux/darwin × amd64/arm64. Uses `sudo install` instead of
+  `chmod` so the binary lands with correct perms.
 
 ### Changed
 
@@ -51,6 +71,8 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
   `sproncy/github-actions` slug, regrouped workflow table by purpose
   (build/test, security, bot), documented the runner strategy.
 - `examples/README.md` extended with consumer stubs for every new workflow.
+- Bumped `actions/checkout` from `@v4` to `@v6` across all existing
+  workflows for consistency with new files.
 
 ### Pre-1.1.0 baseline
 

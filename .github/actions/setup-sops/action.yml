@@ -1,5 +1,5 @@
 name: Setup SOPS
-description: Install sops + age, and optionally decrypt a file using an age private key
+description: Install sops + age (with arch detection), optionally decrypt a file using an age private key
 
 inputs:
   sops-version:
@@ -22,20 +22,56 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Install sops
+    - name: Detect arch
+      id: arch
       shell: bash
       run: |
-        SOPS_URL="https://github.com/getsops/sops/releases/download/${{ inputs.sops-version }}/sops-${{ inputs.sops-version }}.linux.amd64"
-        sudo curl -sSL -o /usr/local/bin/sops "$SOPS_URL"
-        sudo chmod +x /usr/local/bin/sops
+        case "$RUNNER_OS" in
+          Linux) os=linux ;;
+          macOS) os=darwin ;;
+          *) echo "::error::unsupported RUNNER_OS=$RUNNER_OS"; exit 1 ;;
+        esac
+        case "$(uname -m)" in
+          x86_64) arch=amd64 ;;
+          aarch64|arm64) arch=arm64 ;;
+          *) echo "::error::unsupported arch $(uname -m)"; exit 1 ;;
+        esac
+        echo "os=$os" >> "$GITHUB_OUTPUT"
+        echo "arch=$arch" >> "$GITHUB_OUTPUT"
+
+    - name: Install sops
+      shell: bash
+      env:
+        VERSION: ${{ inputs.sops-version }}
+        OS: ${{ steps.arch.outputs.os }}
+        ARCH: ${{ steps.arch.outputs.arch }}
+      run: |
+        set -euo pipefail
+        url="https://github.com/getsops/sops/releases/download/${VERSION}/sops-${VERSION}.${OS}.${ARCH}"
+        # macOS asset naming dropped the OS suffix on older releases; the
+        # current ${VERSION}.${OS}.${ARCH} scheme is consistent from v3.8+.
+        if [ "$OS" = darwin ]; then
+          # macOS install via curl; sudo install handles the +x bit.
+          curl -sSfL -o /tmp/sops "$url"
+          sudo install -m 0755 /tmp/sops /usr/local/bin/sops
+        else
+          sudo curl -sSfL -o /usr/local/bin/sops "$url"
+          sudo chmod +x /usr/local/bin/sops
+        fi
         sops --version
 
     - name: Install age
       shell: bash
+      env:
+        VERSION: ${{ inputs.age-version }}
+        OS: ${{ steps.arch.outputs.os }}
+        ARCH: ${{ steps.arch.outputs.arch }}
       run: |
-        AGE_URL="https://github.com/FiloSottile/age/releases/download/${{ inputs.age-version }}/age-${{ inputs.age-version }}-linux-amd64.tar.gz"
-        curl -sSL "$AGE_URL" | tar -xz -C /tmp
-        sudo mv /tmp/age/age /tmp/age/age-keygen /usr/local/bin/
+        set -euo pipefail
+        url="https://github.com/FiloSottile/age/releases/download/${VERSION}/age-${VERSION}-${OS}-${ARCH}.tar.gz"
+        curl -sSfL "$url" | tar -xz -C /tmp
+        sudo install -m 0755 /tmp/age/age /usr/local/bin/age
+        sudo install -m 0755 /tmp/age/age-keygen /usr/local/bin/age-keygen
         age --version
 
     - name: Configure age key
@@ -52,4 +88,6 @@ runs:
     - name: Decrypt file
       if: inputs.decrypt-file != ''
       shell: bash
-      run: sops --decrypt --in-place "${{ inputs.decrypt-file }}"
+      env:
+        FILE: ${{ inputs.decrypt-file }}
+      run: sops --decrypt --in-place "$FILE"
