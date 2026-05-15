@@ -84,7 +84,7 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 ### Changed
 
 - `README.md` rewritten: replaced `<org>/ci` placeholder with the real
-  `sproncy/github-actions` slug, regrouped workflow table by purpose
+  `sproncy/.github-actions` slug, regrouped workflow table by purpose
   (build/test, security, bot), documented the runner strategy.
 - `examples/README.md` extended with consumer stubs for every new workflow.
 - Bumped `actions/checkout` from `@v4` to `@v6` across all existing
@@ -101,4 +101,4 @@ Earlier additions, currently shipped under `v1.0.x`:
 - `self-test.yml` running actionlint and yamllint on every PR.
 - Renovate config.
 
-[Unreleased]: https://github.com/sproncy/github-actions/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/sproncy/.github-actions/compare/v1.0.0...HEAD

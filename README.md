@@ -1,4 +1,4 @@
-# sproncy/github-actions
+# sproncy/.github-actions
 
 Centralised reusable GitHub Actions workflows and composite actions for the
 Sproncy org. Consumed by ~20 sibling repos via `uses:` pinned tags.
@@ -77,7 +77,7 @@ on:
 
 jobs:
   test:
-    uses: sproncy/github-actions/.github/workflows/python-uv.yml@v1
+    uses: sproncy/.github-actions/.github/workflows/python-uv.yml@v1
     with:
       python-version: "3.12"
     secrets: inherit
@@ -92,7 +92,7 @@ explicitly so it's obvious what the workflow can see.
 ```yaml
 steps:
   - uses: actions/checkout@v4
-  - uses: sproncy/github-actions/.github/actions/setup-mise@v1
+  - uses: sproncy/.github-actions/.github/actions/setup-mise@v1
   - run: mise run build
 ```
 
@@ -156,7 +156,7 @@ splits stay in the caller — this repo's workflows are single-job.
 
 Renovate is configured (`renovate.json`) to bump pinned actions automatically.
 Consumers should also enable Renovate to keep their pin to this repo
-(`sproncy/github-actions`) up to date.
+(`sproncy/.github-actions`) up to date.
 
 ## Releasing
 

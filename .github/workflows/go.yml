@@ -6,7 +6,7 @@ on:
       go-version:
         description: |
           Go version (e.g. '1.23'). If you manage Go via mise, call
-          sproncy/github-actions/.github/actions/setup-mise@v1 + `mise install`
+          sproncy/.github-actions/.github/actions/setup-mise@v1 + `mise install`
           in your stub before this workflow.
         type: string
         default: "1.23"

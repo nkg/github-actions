@@ -1,7 +1,7 @@
 # Consumer examples
 
 Drop these into `.github/workflows/*.yml` of a consumer repo. Replace
-`sproncy/github-actions@v1` with a SHA when you need bit-for-bit pinning.
+`sproncy/.github-actions@v1` with a SHA when you need bit-for-bit pinning.
 
 ## Python (uv)
 
@@ -13,7 +13,7 @@ on:
   pull_request:
 jobs:
   test:
-    uses: sproncy/github-actions/.github/workflows/python-uv.yml@v1
+    uses: sproncy/.github-actions/.github/workflows/python-uv.yml@v1
     with:
       python-version: "3.12"
     secrets: inherit
@@ -26,7 +26,7 @@ name: CI
 on: [push, pull_request]
 jobs:
   web:
-    uses: sproncy/github-actions/.github/workflows/node-bun.yml@v1
+    uses: sproncy/.github-actions/.github/workflows/node-bun.yml@v1
     with:
       working-directory: apps/web
 ```
@@ -42,7 +42,7 @@ jobs:
       matrix:
         otp: ["26", "27"]
         elixir: ["1.16", "1.17"]
-    uses: sproncy/github-actions/.github/workflows/elixir.yml@v1
+    uses: sproncy/.github-actions/.github/workflows/elixir.yml@v1
     with:
       otp-version: ${{ matrix.otp }}
       elixir-version: ${{ matrix.elixir }}
@@ -60,7 +60,7 @@ on:
     paths: ["stacks/cloudflare/**"]
 jobs:
   cloudflare:
-    uses: sproncy/github-actions/.github/workflows/opentofu.yml@v1
+    uses: sproncy/.github-actions/.github/workflows/opentofu.yml@v1
     with:
       working-directory: stacks/cloudflare
       tofu-version: "1.8.0"
@@ -77,7 +77,7 @@ on:
   pull_request:
 jobs:
   image:
-    uses: sproncy/github-actions/.github/workflows/docker-build.yml@v1
+    uses: sproncy/.github-actions/.github/workflows/docker-build.yml@v1
     with:
       image-name: ${{ github.repository }}
       platforms: linux/amd64,linux/arm64
@@ -91,7 +91,7 @@ name: CI
 on: [push, pull_request]
 jobs:
   ansible:
-    uses: sproncy/github-actions/.github/workflows/ansible.yml@v1
+    uses: sproncy/.github-actions/.github/workflows/ansible.yml@v1
     with:
       working-directory: ansible
       playbooks: |
@@ -107,7 +107,7 @@ name: CI
 on: [push, pull_request]
 jobs:
   go:
-    uses: sproncy/github-actions/.github/workflows/go.yml@v1
+    uses: sproncy/.github-actions/.github/workflows/go.yml@v1
     with:
       go-version: "1.23"
       run-staticcheck: true
@@ -121,7 +121,7 @@ name: CI
 on: [push, pull_request]
 jobs:
   scrapy:
-    uses: sproncy/github-actions/.github/workflows/scrapy.yml@v1
+    uses: sproncy/.github-actions/.github/workflows/scrapy.yml@v1
     with:
       run-spider-smoke: true
       spider-name: products
@@ -134,7 +134,7 @@ name: CI
 on: [push, pull_request]
 jobs:
   api:
-    uses: sproncy/github-actions/.github/workflows/fastapi.yml@v1
+    uses: sproncy/.github-actions/.github/workflows/fastapi.yml@v1
     with:
       app-module: myapi.main:app
       run-openapi-diff: true
@@ -148,7 +148,7 @@ name: Validate compose
 on: [push, pull_request]
 jobs:
   validate:
-    uses: sproncy/github-actions/.github/workflows/compose-validate.yml@v1
+    uses: sproncy/.github-actions/.github/workflows/compose-validate.yml@v1
     with:
       compose-file: docker-compose.yml
       profiles: |
@@ -169,7 +169,7 @@ on:
     branches: [main]
 jobs:
   komodo:
-    uses: sproncy/github-actions/.github/workflows/komodo-deploy.yml@v1
+    uses: sproncy/.github-actions/.github/workflows/komodo-deploy.yml@v1
     with:
       komodo-url: https://komodo.example.com
       operation: DeployStack
@@ -196,7 +196,7 @@ on:
     - cron: '0 6 * * 1'   # weekly full-history sweep
 jobs:
   gitleaks:
-    uses: sproncy/github-actions/.github/workflows/secret-scan.yml@v1
+    uses: sproncy/.github-actions/.github/workflows/secret-scan.yml@v1
     with:
       runs-on: '[self-hosted, linux, x64]'
 ```
@@ -215,7 +215,7 @@ on:
     - cron: '0 6 * * 1'
 jobs:
   trivy:
-    uses: sproncy/github-actions/.github/workflows/container-security.yml@v1
+    uses: sproncy/.github-actions/.github/workflows/container-security.yml@v1
     with:
       compose-file: docker-compose.yml
       runs-on: '[self-hosted, linux, x64]'
@@ -226,7 +226,7 @@ Or scan an explicit list:
 ```yaml
 jobs:
   trivy:
-    uses: sproncy/github-actions/.github/workflows/container-security.yml@v1
+    uses: sproncy/.github-actions/.github/workflows/container-security.yml@v1
     with:
       image-list: |
         ghcr.io/sproncy/api:latest
@@ -240,7 +240,7 @@ name: SOPS audit
 on: [push, pull_request]
 jobs:
   audit:
-    uses: sproncy/github-actions/.github/workflows/sops-audit.yml@v1
+    uses: sproncy/.github-actions/.github/workflows/sops-audit.yml@v1
     with:
       encrypted-glob: '*.encrypted'
       shellcheck: true
@@ -259,7 +259,7 @@ on:
     paths: ['.github/workflows/**', '.github/actions/**']
 jobs:
   lint:
-    uses: sproncy/github-actions/.github/workflows/lint-workflows.yml@v1
+    uses: sproncy/.github-actions/.github/workflows/lint-workflows.yml@v1
     with:
       # actionlint's bundled action metadata trails behind upstream.
       # See sproncy-distillery/.github/workflows/lint-workflows.yml for context.
@@ -290,7 +290,7 @@ on:
     types: [submitted]
 jobs:
   claude:
-    uses: sproncy/github-actions/.github/workflows/claude.yml@v1
+    uses: sproncy/.github-actions/.github/workflows/claude.yml@v1
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 ```
@@ -304,7 +304,7 @@ on:
     types: [opened, synchronize, ready_for_review, reopened]
 jobs:
   review:
-    uses: sproncy/github-actions/.github/workflows/claude-code-review.yml@v1
+    uses: sproncy/.github-actions/.github/workflows/claude-code-review.yml@v1
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 ```
@@ -314,7 +314,7 @@ Filter to first-time contributors only:
 ```yaml
 jobs:
   review:
-    uses: sproncy/github-actions/.github/workflows/claude-code-review.yml@v1
+    uses: sproncy/.github-actions/.github/workflows/claude-code-review.yml@v1
     with:
       filter-first-time-only: true
     secrets:
@@ -332,7 +332,7 @@ on:
     types: [opened]
 jobs:
   assign:
-    uses: sproncy/github-actions/.github/workflows/auto-assign.yml@v1
+    uses: sproncy/.github-actions/.github/workflows/auto-assign.yml@v1
     with:
       assignees: nkg
 ```
@@ -351,7 +351,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: sproncy/github-actions/.github/actions/setup-sops@v1
+      - uses: sproncy/.github-actions/.github/actions/setup-sops@v1
         with:
           age-key: ${{ secrets.SOPS_AGE_KEY }}
           decrypt-file: secrets.enc.yaml
@@ -369,7 +369,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: sproncy/github-actions/.github/actions/setup-deps-reader@v1
+      - uses: sproncy/.github-actions/.github/actions/setup-deps-reader@v1
         with:
           app-client-id: ${{ vars.DEPS_READER_CLIENT_ID }}
           app-private-key: ${{ secrets.DEPS_READER_PRIVATE_KEY }}
@@ -386,7 +386,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: sproncy/github-actions/.github/actions/setup-trivy@v1
+      - uses: sproncy/.github-actions/.github/actions/setup-trivy@v1
       - run: trivy fs --severity HIGH,CRITICAL .
 
   sign:
@@ -395,6 +395,6 @@ jobs:
       id-token: write
       contents: read
     steps:
-      - uses: sproncy/github-actions/.github/actions/setup-cosign@v1
+      - uses: sproncy/.github-actions/.github/actions/setup-cosign@v1
       - run: cosign sign --yes ghcr.io/sproncy/api@sha256:...
 ```
