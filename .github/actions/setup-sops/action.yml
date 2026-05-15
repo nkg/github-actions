@@ -48,16 +48,13 @@ runs:
       run: |
         set -euo pipefail
         url="https://github.com/getsops/sops/releases/download/${VERSION}/sops-${VERSION}.${OS}.${ARCH}"
-        # macOS asset naming dropped the OS suffix on older releases; the
-        # current ${VERSION}.${OS}.${ARCH} scheme is consistent from v3.8+.
-        if [ "$OS" = darwin ]; then
-          # macOS install via curl; sudo install handles the +x bit.
-          curl -sSfL -o /tmp/sops "$url"
-          sudo install -m 0755 /tmp/sops /usr/local/bin/sops
-        else
-          sudo curl -sSfL -o /usr/local/bin/sops "$url"
-          sudo chmod +x /usr/local/bin/sops
-        fi
+        # ${VERSION}.${OS}.${ARCH} asset scheme is consistent from sops v3.8+
+        # across linux/darwin × amd64/arm64. Download to a temp file first
+        # (no sudo on the curl), then `sudo install` to set mode + path atomically.
+        tmpfile=$(mktemp)
+        curl -sSfL -o "$tmpfile" "$url"
+        sudo install -m 0755 "$tmpfile" /usr/local/bin/sops
+        rm -f "$tmpfile"
         sops --version
 
     - name: Install age
@@ -69,9 +66,13 @@ runs:
       run: |
         set -euo pipefail
         url="https://github.com/FiloSottile/age/releases/download/${VERSION}/age-${VERSION}-${OS}-${ARCH}.tar.gz"
-        curl -sSfL "$url" | tar -xz -C /tmp
-        sudo install -m 0755 /tmp/age/age /usr/local/bin/age
-        sudo install -m 0755 /tmp/age/age-keygen /usr/local/bin/age-keygen
+        # Per-run mktemp avoids collisions on persistent runners and isolates
+        # the tarball's internal layout from anything else under /tmp.
+        tmpdir=$(mktemp -d)
+        curl -sSfL "$url" | tar -xz -C "$tmpdir"
+        sudo install -m 0755 "$tmpdir/age/age" /usr/local/bin/age
+        sudo install -m 0755 "$tmpdir/age/age-keygen" /usr/local/bin/age-keygen
+        rm -rf "$tmpdir"
         age --version
 
     - name: Configure age key

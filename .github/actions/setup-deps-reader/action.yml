@@ -56,4 +56,7 @@ runs:
         : > "$cred_file"
         chmod 600 "$cred_file"
         printf 'https://x-access-token:%s@github.com\n' "$TOKEN" >> "$cred_file"
-        git config --global credential.helper "store --file=$cred_file"
+        # --replace-all because credential.helper is multi-valued; on a
+        # persistent self-hosted runner repeated jobs would otherwise stack
+        # up entries (and could leak a stale helper from a prior job).
+        git config --global --replace-all credential.helper "store --file=$cred_file"
