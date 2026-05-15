@@ -1,0 +1,19 @@
+name: Setup cosign
+description: Thin wrapper over sigstore/cosign-installer so the version is pinned org-wide
+
+inputs:
+  cosign-version:
+    description: "cosign release (e.g. v2.4.1). Empty = installer default."
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - uses: sigstore/cosign-installer@v3
+      with:
+        cosign-release: ${{ inputs.cosign-version }}
+
+    - name: Verify
+      shell: bash
+      run: cosign version

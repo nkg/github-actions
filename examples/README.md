@@ -339,7 +339,9 @@ jobs:
 
 ---
 
-## Composite action: SOPS-decrypt during a custom job
+## Composite actions
+
+### SOPS-decrypt during a custom job
 
 ```yaml
 name: Deploy
@@ -354,4 +356,45 @@ jobs:
           age-key: ${{ secrets.SOPS_AGE_KEY }}
           decrypt-file: secrets.enc.yaml
       - run: ./scripts/deploy.sh
+```
+
+### Private-deps fetch via GitHub App
+
+For repos that depend on private Sproncy modules (uv `git+`, hex from a
+private repo, go modules behind a proxy):
+
+```yaml
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: sproncy/github-actions/.github/actions/setup-deps-reader@v1
+        with:
+          app-client-id: ${{ vars.DEPS_READER_CLIENT_ID }}
+          app-private-key: ${{ secrets.DEPS_READER_PRIVATE_KEY }}
+          repositories: sproncy-schemas,sproncy-secrets-core
+      - uses: astral-sh/setup-uv@v7
+      - run: uv sync --frozen
+```
+
+### Pinned Trivy / cosign for custom steps
+
+```yaml
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: sproncy/github-actions/.github/actions/setup-trivy@v1
+      - run: trivy fs --severity HIGH,CRITICAL .
+
+  sign:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: sproncy/github-actions/.github/actions/setup-cosign@v1
+      - run: cosign sign --yes ghcr.io/sproncy/api@sha256:...
 ```

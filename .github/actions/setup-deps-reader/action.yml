@@ -1,0 +1,59 @@
+name: Setup deps-reader
+description: |
+  Mint a scoped GitHub App installation token and configure git to use it
+  for HTTPS clones. Lets workflows access private deps (uv git deps, hex
+  deps from private repos, go module proxies pointing at private repos)
+  without bundling a PAT.
+
+  Uses `credential.helper store --file=<path>` instead of
+  `url.<token>@github.com.insteadOf` because the latter is not honoured
+  by uv/hex/go subprocess fetches that re-resolve git deps (e.g. after
+  a lockfile cache invalidation). The credential helper IS honoured by
+  every git invocation that reads the global config.
+
+  Caller must run actions/checkout BEFORE invoking this — composite
+  actions cannot pull themselves onto the runner.
+
+inputs:
+  app-client-id:
+    description: "GitHub App client ID (public on the App's page)"
+    required: true
+  app-private-key:
+    description: "GitHub App private key (pass via secrets)"
+    required: true
+  repositories:
+    description: "Comma-separated list of repo names (no owner) the token should be scoped to"
+    required: true
+  owner:
+    description: "Repo owner (defaults to github.repository_owner)"
+    required: false
+    default: ""
+
+outputs:
+  token:
+    description: "The minted installation token"
+    value: ${{ steps.app-token.outputs.token }}
+
+runs:
+  using: composite
+  steps:
+    - name: Mint GitHub App token
+      id: app-token
+      uses: actions/create-github-app-token@v3
+      with:
+        client-id: ${{ inputs.app-client-id }}
+        private-key: ${{ inputs.app-private-key }}
+        owner: ${{ inputs.owner != '' && inputs.owner || github.repository_owner }}
+        repositories: ${{ inputs.repositories }}
+
+    - name: Configure git credential helper
+      shell: bash
+      env:
+        TOKEN: ${{ steps.app-token.outputs.token }}
+      run: |
+        # Per-job credential file in $RUNNER_TEMP — disappears with the runner.
+        cred_file="$RUNNER_TEMP/git-credentials"
+        : > "$cred_file"
+        chmod 600 "$cred_file"
+        printf 'https://x-access-token:%s@github.com\n' "$TOKEN" >> "$cred_file"
+        git config --global credential.helper "store --file=$cred_file"

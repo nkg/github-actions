@@ -30,9 +30,14 @@ Sproncy org. Consumed by ~20 sibling repos via `uses:` pinned tags.
 │   ├── self-test.yml        # this repo's own CI
 │   └── sops-audit.yml
 ├── actions/               # composite actions (callable via `uses:` from steps)
+│   ├── setup-cosign/
+│   ├── setup-deps-reader/
+│   ├── setup-go/
 │   ├── setup-mise/
-│   └── setup-sops/
-└── actionlint.yaml          # declares Sproncy custom self-hosted labels
+│   ├── setup-sops/
+│   └── setup-trivy/
+├── actionlint.yaml          # declares Sproncy custom self-hosted labels
+└── dependabot.yml           # weekly bumps for this repo's own actions
 ```
 
 ## Runner strategy
@@ -129,10 +134,14 @@ steps:
 
 ## Available composite actions
 
-| Action          | Purpose                                                            |
-|-----------------|--------------------------------------------------------------------|
-| `setup-mise`    | Installs mise and runs `mise install` (caches the tool dir)        |
-| `setup-sops`    | Installs sops + age, optionally decrypts a file with a private key |
+| Action               | Purpose                                                            |
+|----------------------|--------------------------------------------------------------------|
+| `setup-mise`         | Installs mise and runs `mise install` (caches the tool dir)        |
+| `setup-sops`         | Installs sops + age (cross-arch), optionally decrypts a file       |
+| `setup-go`           | Thin wrapper over `actions/setup-go@v5` for org-wide version pin   |
+| `setup-trivy`        | Installs Trivy CLI at a pinned version (linux/macOS × amd64/arm64) |
+| `setup-cosign`       | Wraps `sigstore/cosign-installer@v3` so the version is pinned once |
+| `setup-deps-reader`  | Mints a scoped GitHub App token for private-deps access via git    |
 
 ## Self-hosted runners
 

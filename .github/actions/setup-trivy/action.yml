@@ -1,0 +1,44 @@
+name: Setup Trivy
+description: Install the Trivy CLI at a pinned version (linux/macOS, amd64/arm64)
+
+inputs:
+  trivy-version:
+    description: "Trivy CLI version (without the 'v' prefix)"
+    required: false
+    # renovate: datasource=github-releases depName=aquasecurity/trivy
+    default: "0.57.1"
+
+runs:
+  using: composite
+  steps:
+    - name: Detect platform
+      id: plat
+      shell: bash
+      run: |
+        case "$RUNNER_OS" in
+          Linux) os=Linux ;;
+          macOS) os=macOS ;;
+          *) echo "::error::unsupported RUNNER_OS=$RUNNER_OS"; exit 1 ;;
+        esac
+        case "$(uname -m)" in
+          x86_64) arch=64bit ;;
+          aarch64|arm64) arch=ARM64 ;;
+          *) echo "::error::unsupported arch $(uname -m)"; exit 1 ;;
+        esac
+        echo "os=$os" >> "$GITHUB_OUTPUT"
+        echo "arch=$arch" >> "$GITHUB_OUTPUT"
+
+    - name: Install Trivy
+      shell: bash
+      env:
+        VERSION: ${{ inputs.trivy-version }}
+        OS: ${{ steps.plat.outputs.os }}
+        ARCH: ${{ steps.plat.outputs.arch }}
+      run: |
+        set -euo pipefail
+        url="https://github.com/aquasecurity/trivy/releases/download/v${VERSION}/trivy_${VERSION}_${OS}-${ARCH}.tar.gz"
+        tmpdir=$(mktemp -d)
+        curl -sSfL "$url" | tar -xz -C "$tmpdir"
+        sudo install -m 0755 "$tmpdir/trivy" /usr/local/bin/trivy
+        rm -rf "$tmpdir"
+        trivy --version

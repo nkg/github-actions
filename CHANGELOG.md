@@ -30,8 +30,7 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 - **Phase 2 — Stack coverage:**
   - `go.yml` — gofmt, go vet, optional staticcheck + govulncheck,
-    test with race + coverage upload. `go-version: "mise"` reads the
-    pin from `.mise.toml`.
+    test with race + coverage upload.
   - `scrapy.yml` — uv-managed Scrapy project: ruff + pytest +
     `scrapy list` + `scrapy check` (contract tests) + optional
     single-item smoke crawl via `CLOSESPIDER_ITEMCOUNT=1`.
@@ -57,6 +56,23 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
     SPDX-JSON, 30-day artifact retention). All three short-circuit
     silently when `push: false`. `id-token: write` and
     `security-events: write` permissions are now always declared.
+
+- **Phase 3b — New composite actions & housekeeping:**
+  - `setup-go` — thin wrapper over `actions/setup-go@v5` for org-wide
+    Go version pinning.
+  - `setup-trivy` — pinned Trivy CLI install (linux/macOS × amd64/arm64).
+    Uses GitHub release tarball + `sudo install` for predictable perms.
+  - `setup-cosign` — wraps `sigstore/cosign-installer@v3`. Single
+    point for pinning the cosign release across the org.
+  - `setup-deps-reader` — generalised from `sproncy-distillery`'s
+    `setup-sproncy`. Mints a scoped GitHub App installation token,
+    configures git via a per-job `credential.helper store` file
+    (not `--global insteadOf`, which uv/hex/go subprocess fetches
+    didn't honour reliably).
+  - `.github/dependabot.yml` — weekly `github-actions` bumps for this
+    repo itself.
+  - `self-test.yml` now dogfoods `lint-workflows.yml` (was three
+    inline jobs).
 
 ### Fixed
 
