@@ -6,6 +6,11 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-05-15
+
+First usable release. Prior commits on `main` shipped only a placeholder
+README; everything below is the actual content of this repo.
+
 ### Added
 
 - **Phase 1 — Security & bot bundle:**
@@ -90,15 +95,5 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 - Bumped `actions/checkout` from `@v4` to `@v6` across all existing
   workflows for consistency with new files.
 
-### Pre-1.1.0 baseline
-
-Earlier additions, currently shipped under `v1.0.x`:
-
-- Reusable workflows: `python-uv`, `node-bun`, `elixir`, `expo`,
-  `opentofu`, `ansible`, `docker-build`.
-- Composite actions: `setup-mise`, `setup-sops`.
-- `release.yml` to maintain the floating `vMAJOR` tag.
-- `self-test.yml` running actionlint and yamllint on every PR.
-- Renovate config.
-
 [Unreleased]: https://github.com/sproncy/.github-actions/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/sproncy/.github-actions/releases/tag/v1.0.0
