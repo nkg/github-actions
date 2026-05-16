@@ -10,6 +10,7 @@ Sproncy org. Consumed by ~20 sibling repos via `uses:` pinned tags.
 ├── workflows/             # reusable workflows (callable via `uses:`)
 │   ├── ansible.yml
 │   ├── auto-assign.yml
+│   ├── bats.yml
 │   ├── claude.yml
 │   ├── claude-code-review.yml
 │   ├── compose-validate.yml
@@ -130,6 +131,7 @@ steps:
 | `container-security.yml`| Trivy scan of every image in a compose file or explicit list     |
 | `sops-audit.yml`        | Verify SOPS encryption + plaintext-secret scan + shellcheck      |
 | `lint-workflows.yml`    | actionlint + yamllint for the consumer's `.github/` tree         |
+| `bats.yml`              | bats-core test runner + companion shellcheck job (both opt-out)  |
 
 ### Bot / automation
 

@@ -24,6 +24,11 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
     tasks + optional workspace `--filter`. Designed to compose with
     `dorny/paths-filter` in the caller stub. Lift from
     Regularmusic/web-platform.
+  - `bats.yml` — bats-core test runner + companion shellcheck job.
+    Both jobs opt-out. shellcheck-paths auto-detects scripts/, tests/,
+    bin/ when blank. Pattern observed across sproncy-secrets,
+    GitHub-runners, monitoring_stack, scraper-skills, and
+    Regularmusic/iac.
 
 ## [1.0.0] - 2026-05-15
 

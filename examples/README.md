@@ -428,6 +428,32 @@ jobs:
     uses: sproncy/.github-actions/.github/workflows/toml-lint.yml@v1
 ```
 
+### Bats + shellcheck
+
+```yaml
+name: Bash tests
+on: [push, pull_request]
+jobs:
+  bash:
+    uses: sproncy/.github-actions/.github/workflows/bats.yml@v1
+    with:
+      test-paths: tests/
+      # Auto-detects scripts/ + tests/ + bin/ when shellcheck-paths is empty
+```
+
+Pinning bats and customising shellcheck scope:
+
+```yaml
+jobs:
+  bash:
+    uses: sproncy/.github-actions/.github/workflows/bats.yml@v1
+    with:
+      bats-version: "1.11.0"
+      test-paths: "tests/sops tests/restore"
+      shellcheck-paths: "scripts lib"
+      shellcheck-args: "-x --source-path=SCRIPTDIR -e SC2034"
+```
+
 ---
 
 ## Composite actions

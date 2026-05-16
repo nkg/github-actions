@@ -1,0 +1,123 @@
+name: Bash tests (bats + shellcheck)
+
+# Two independent jobs so consumers can use either piece on its own:
+#   - bats        — run bats-core test suites
+#   - shellcheck  — lint shell scripts (the natural sidekick)
+# Common across sproncy-secrets, monitoring_stack, GitHub-runners,
+# HordiaLabs/scraper-skills, Regularmusic/iac.
+
+on:
+  workflow_call:
+    inputs:
+      runs-on:
+        type: string
+        default: "ubuntu-latest"
+
+      run-bats:
+        type: boolean
+        default: true
+      bats-version:
+        description: "bats-core release (e.g. '1.11.0'). Empty = apt-shipped version."
+        type: string
+        default: ""
+      test-paths:
+        description: "Whitespace-separated paths/files for bats to run"
+        type: string
+        default: "tests/"
+      bats-args:
+        description: "Extra args appended to the bats invocation"
+        type: string
+        default: ""
+
+      run-shellcheck:
+        type: boolean
+        default: true
+      shellcheck-paths:
+        description: |
+          Whitespace-separated paths to recursively scan. Empty = auto-detect
+          scripts/, tests/, bin/ (only those that exist).
+        type: string
+        default: ""
+      shellcheck-args:
+        description: "Extra args for shellcheck (default follows source directives)"
+        type: string
+        default: "-x --source-path=SCRIPTDIR"
+
+jobs:
+  bats:
+    if: inputs.run-bats
+    runs-on: ${{ inputs.runs-on }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install bats
+        env:
+          VERSION: ${{ inputs.bats-version }}
+        run: |
+          set -euo pipefail
+          if [ -z "$VERSION" ]; then
+            # apt-shipped is fine for most consumers and avoids a network
+            # download on every CI run.
+            sudo apt-get update -qq
+            sudo apt-get install -y --no-install-recommends bats
+          else
+            # Pinned install via the bats-core tarball + bundled installer.
+            tmpdir=$(mktemp -d)
+            curl -sSfL "https://github.com/bats-core/bats-core/archive/refs/tags/v${VERSION}.tar.gz" \
+              | tar -xz -C "$tmpdir"
+            sudo "$tmpdir/bats-core-${VERSION}/install.sh" /usr/local
+            rm -rf "$tmpdir"
+          fi
+          bats --version
+
+      - name: Run bats
+        env:
+          PATHS: ${{ inputs.test-paths }}
+          ARGS: ${{ inputs.bats-args }}
+        run: |
+          set -euo pipefail
+          # Word-splitting on PATHS/ARGS is intentional — inputs are space-separated.
+          # shellcheck disable=SC2086
+          bats $ARGS $PATHS
+
+  shellcheck:
+    if: inputs.run-shellcheck
+    runs-on: ${{ inputs.runs-on }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install shellcheck
+        run: |
+          if ! command -v shellcheck >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y --no-install-recommends shellcheck
+          fi
+          shellcheck --version
+
+      - name: Run shellcheck
+        env:
+          PATHS: ${{ inputs.shellcheck-paths }}
+          ARGS: ${{ inputs.shellcheck-args }}
+        run: |
+          set -euo pipefail
+          if [ -z "$PATHS" ]; then
+            # Auto-detect: only include dirs that exist, so the workflow is
+            # a safe no-op for repos that haven't put scripts in any of them.
+            detected=""
+            for d in scripts tests bin; do
+              [ -d "$d" ] && detected="$detected $d"
+            done
+            if [ -z "$detected" ]; then
+              echo "no scripts/, tests/, or bin/ directories — skipping shellcheck"
+              exit 0
+            fi
+            PATHS="$detected"
+          fi
+          # Both PATHS and ARGS are space-separated and intentionally word-split.
+          # shellcheck disable=SC2086
+          find $PATHS -type f \( -name '*.sh' -o -name '*.bash' \) -print0 \
+            | xargs -0 -r shellcheck $ARGS
