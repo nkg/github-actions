@@ -6,6 +6,8 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-05-16
+
 ### Added
 
 - **Phase 4 — Cross-org workflows (lifted from HordiaLabs + Regularmusic):**
@@ -29,6 +31,21 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
     bin/ when blank. Pattern observed across sproncy-secrets,
     GitHub-runners, monitoring_stack, scraper-skills, and
     Regularmusic/iac.
+
+### Changed
+
+- Dependabot-driven action bumps (PR #3, grouped):
+  - `actions/upload-artifact` v4 → v7
+  - `actions/setup-python` v5 → v6
+  - `actions/cache` v4 → v5
+  - `astral-sh/setup-uv` v4 → v7
+  - `docker/setup-qemu-action` v3 → v4
+  - `docker/setup-buildx-action` v3 → v4
+  - `docker/login-action` v3 → v4
+  - `docker/metadata-action` v5 → v6
+  - `docker/build-push-action` v6 → v7
+- All bumps are major versions; none of them carry a breaking change
+  observable from the workflow inputs this repo exposes.
 
 ## [1.0.0] - 2026-05-15
 
@@ -119,5 +136,6 @@ README; everything below is the actual content of this repo.
 - Bumped `actions/checkout` from `@v4` to `@v6` across all existing
   workflows for consistency with new files.
 
-[Unreleased]: https://github.com/sproncy/.github-actions/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/sproncy/.github-actions/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/sproncy/.github-actions/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/sproncy/.github-actions/releases/tag/v1.0.0
