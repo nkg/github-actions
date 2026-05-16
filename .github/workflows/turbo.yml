@@ -1,0 +1,100 @@
+name: Bun + Turborepo
+
+# Bun-based monorepo with Turborepo. Restores .turbo cache, installs
+# deps with a frozen lockfile, and runs the configured turbo tasks
+# (optionally filtered to specific workspaces).
+#
+# Consumers can chain this with dorny/paths-filter in their own stub
+# to skip the job entirely when no relevant paths changed — see
+# examples/README.md for the pattern.
+
+on:
+  workflow_call:
+    inputs:
+      runs-on:
+        type: string
+        default: "ubuntu-latest"
+      bun-version:
+        description: "Bun version (empty = read from package.json via bun-version-file)"
+        type: string
+        default: ""
+      working-directory:
+        type: string
+        default: "."
+      install-command:
+        type: string
+        default: "bun install --frozen-lockfile"
+      turbo-tasks:
+        description: "Turborepo tasks to run, space-separated (e.g. 'lint type-check test')"
+        type: string
+        default: "lint type-check test"
+      turbo-filter:
+        description: "Optional --filter args, space-separated (e.g. '@my-org/web @my-org/api')"
+        type: string
+        default: ""
+      cache-key-suffix:
+        description: "Extra suffix on the Turborepo cache key (e.g. 'pr-123')"
+        type: string
+        default: ""
+      checkout-fetch-depth:
+        description: "Turborepo benefits from a small history depth for change detection"
+        type: number
+        default: 2
+      timeout-minutes:
+        type: number
+        default: 20
+
+jobs:
+  ci:
+    runs-on: ${{ inputs.runs-on }}
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    env:
+      TURBO_TELEMETRY_DISABLED: 1
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: ${{ inputs.checkout-fetch-depth }}
+
+      - name: Install Bun (explicit version)
+        if: inputs.bun-version != ''
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ inputs.bun-version }}
+
+      - name: Install Bun (from package.json)
+        if: inputs.bun-version == ''
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: ${{ inputs.working-directory }}/package.json
+
+      - name: Restore Turborepo cache
+        uses: actions/cache@v5
+        with:
+          path: ${{ inputs.working-directory }}/.turbo
+          # Suffix lets consumers segment caches per PR / per env without
+          # colliding with the main-branch warm cache.
+          key: turbo-${{ runner.os }}-${{ github.sha }}${{ inputs.cache-key-suffix != '' && format('-{0}', inputs.cache-key-suffix) || '' }}
+          restore-keys: |
+            turbo-${{ runner.os }}-
+
+      - name: Install
+        run: ${{ inputs.install-command }}
+
+      - name: Turborepo
+        env:
+          TASKS: ${{ inputs.turbo-tasks }}
+          FILTER: ${{ inputs.turbo-filter }}
+        run: |
+          set -euo pipefail
+          ARGS=""
+          if [ -n "$FILTER" ]; then
+            for f in $FILTER; do
+              ARGS="$ARGS --filter=$f"
+            done
+          fi
+          # Both TASKS and ARGS are intentionally word-split.
+          # shellcheck disable=SC2086
+          bunx turbo $TASKS $ARGS

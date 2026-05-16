@@ -1,0 +1,98 @@
+name: Molecule
+
+# Matrix-driven molecule test runner. Replaces the per-role copy-paste
+# pattern (one job per role) commonly seen in Ansible role-heavy repos.
+# Lifted from Regularmusic/iac which had 14 near-identical jobs.
+
+on:
+  workflow_call:
+    inputs:
+      runs-on:
+        type: string
+        default: "ubuntu-latest"
+      python-version:
+        type: string
+        default: "3.12"
+      roles:
+        description: "Newline- or comma-separated list of role names under roles-dir"
+        type: string
+        required: true
+      roles-dir:
+        description: "Parent directory holding the molecule-managed roles"
+        type: string
+        default: "ansible/roles"
+      requirements-file:
+        description: |
+          Optional ansible-galaxy requirements file. If the file doesn't exist
+          the step is skipped, so it's safe to leave at the default.
+        type: string
+        default: "ansible/requirements.yml"
+      molecule-driver:
+        description: "Driver extra for molecule-plugins (docker | podman | …)"
+        type: string
+        default: "docker"
+      molecule-scenario:
+        description: "Scenario subdir under each role/molecule/"
+        type: string
+        default: "default"
+      timeout-minutes:
+        type: number
+        default: 30
+
+jobs:
+  prepare-matrix:
+    runs-on: ${{ inputs.runs-on }}
+    outputs:
+      roles: ${{ steps.parse.outputs.roles }}
+    steps:
+      - name: Build role matrix
+        id: parse
+        env:
+          ROLES: ${{ inputs.roles }}
+        run: |
+          set -euo pipefail
+          # Accept comma- or newline-separated; dedupe and drop blanks.
+          arr=$(printf '%s\n' "$ROLES" \
+            | tr ',' '\n' \
+            | sed 's/[[:space:]]*//g' \
+            | grep -v '^$' \
+            | sort -u \
+            | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          echo "roles=$arr" >> "$GITHUB_OUTPUT"
+          echo "Will test roles:"
+          echo "$arr" | jq -r '.[]'
+
+  test:
+    needs: prepare-matrix
+    runs-on: ${{ inputs.runs-on }}
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    strategy:
+      fail-fast: false
+      matrix:
+        role: ${{ fromJson(needs.prepare-matrix.outputs.roles) }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python-version }}
+          cache: pip
+
+      - name: Install ansible-core + molecule
+        env:
+          DRIVER: ${{ inputs.molecule-driver }}
+        run: pip install ansible-core molecule "molecule-plugins[$DRIVER]"
+
+      - name: Install galaxy collections
+        env:
+          REQS: ${{ inputs.requirements-file }}
+        run: |
+          if [ -n "$REQS" ] && [ -f "$REQS" ]; then
+            ansible-galaxy install -r "$REQS"
+          else
+            echo "no requirements file at '$REQS' — skipping"
+          fi
+
+      - name: Molecule test (${{ matrix.role }})
+        working-directory: ${{ inputs.roles-dir }}/${{ matrix.role }}
+        run: molecule test -s ${{ inputs.molecule-scenario }}

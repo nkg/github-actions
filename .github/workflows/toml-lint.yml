@@ -1,0 +1,86 @@
+name: TOML lint
+
+# Two independent checks:
+#   1. taplo fmt --check — formatting against the repo's taplo config (or defaults).
+#   2. tomllib parse — every .toml file must round-trip through Python's tomllib.
+# Lifted from Regularmusic/komodo.
+
+on:
+  workflow_call:
+    inputs:
+      runs-on:
+        type: string
+        default: "ubuntu-latest"
+      taplo-version:
+        # renovate: datasource=github-releases depName=tamasfe/taplo
+        type: string
+        default: "0.10.0"
+      run-fmt-check:
+        type: boolean
+        default: true
+      run-parse-check:
+        type: boolean
+        default: true
+      python-version:
+        type: string
+        default: "3.12"
+      paths:
+        description: |
+          Whitespace-separated glob list for the parse check. Default
+          '**/*.toml' walks the whole tree (bash globstar enabled).
+        type: string
+        default: "**/*.toml"
+
+jobs:
+  taplo-fmt:
+    if: inputs.run-fmt-check
+    runs-on: ${{ inputs.runs-on }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install taplo
+        env:
+          VERSION: ${{ inputs.taplo-version }}
+        run: |
+          set -euo pipefail
+          # taplo dropped the `-full` asset suffix at 0.10. If you bump
+          # past 0.11 verify the asset filename first.
+          curl -fsSL "https://github.com/tamasfe/taplo/releases/download/${VERSION}/taplo-linux-x86_64.gz" \
+            | gunzip > /tmp/taplo
+          sudo install -m 0755 /tmp/taplo /usr/local/bin/taplo
+          taplo --version
+
+      - run: taplo fmt --check
+
+  tomllib-parse:
+    if: inputs.run-parse-check
+    runs-on: ${{ inputs.runs-on }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python-version }}
+
+      - name: Parse all TOML
+        env:
+          PATHS: ${{ inputs.paths }}
+        run: |
+          set -e
+          shopt -s globstar nullglob
+          fail=0
+          # Word-splitting on $PATHS is intentional — input is space-separated globs.
+          # shellcheck disable=SC2086
+          for f in $PATHS; do
+            [ -f "$f" ] || continue
+            if ! python3 -c "import tomllib, sys; tomllib.load(open(sys.argv[1], 'rb'))" "$f" 2>err.log; then
+              echo "::error file=$f::TOML parse failed"
+              cat err.log
+              fail=1
+            fi
+          done
+          exit "$fail"

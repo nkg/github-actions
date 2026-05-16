@@ -337,6 +337,123 @@ jobs:
       assignees: nkg
 ```
 
+### Dependabot auto-merge
+
+Pairs with a `dependabot.yml` config — merges patch/minor bumps automatically once required checks pass. Major bumps are gated.
+
+```yaml
+name: Dependabot auto-merge
+on:
+  pull_request:
+jobs:
+  merge:
+    uses: sproncy/.github-actions/.github/workflows/dependabot-auto-merge.yml@v1
+    # Defaults: squash strategy, skip major bumps.
+    # with:
+    #   merge-strategy: rebase
+    #   auto-merge-major: true
+```
+
+---
+
+## Monorepo / specialty
+
+### Turborepo (Bun)
+
+```yaml
+name: CI
+on: [push, pull_request]
+jobs:
+  build:
+    uses: sproncy/.github-actions/.github/workflows/turbo.yml@v1
+    with:
+      turbo-tasks: "lint type-check test build"
+      turbo-filter: "@my-org/web @my-org/api"
+```
+
+Combine with `dorny/paths-filter` in your stub for per-app change detection:
+
+```yaml
+on: [push, pull_request]
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      web: ${{ steps.f.outputs.web }}
+      api: ${{ steps.f.outputs.api }}
+    steps:
+      - uses: actions/checkout@v6
+      - id: f
+        uses: dorny/paths-filter@v4
+        with:
+          filters: |
+            web: ['apps/web/**', 'packages/**']
+            api: ['apps/api/**', 'packages/**']
+  web:
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
+    uses: sproncy/.github-actions/.github/workflows/turbo.yml@v1
+    with:
+      turbo-tasks: "lint type-check test build"
+      turbo-filter: "@my-org/web"
+```
+
+### Molecule (Ansible role tests)
+
+Collapses the per-role-job pattern into one matrix:
+
+```yaml
+name: Molecule
+on: [push, pull_request]
+jobs:
+  molecule:
+    uses: sproncy/.github-actions/.github/workflows/molecule.yml@v1
+    with:
+      roles: |
+        common
+        docker
+        crowdsec
+        restic
+        trivy
+      roles-dir: ansible/roles
+```
+
+### TOML lint
+
+```yaml
+name: TOML lint
+on: [push, pull_request]
+jobs:
+  toml:
+    uses: sproncy/.github-actions/.github/workflows/toml-lint.yml@v1
+```
+
+### Bats + shellcheck
+
+```yaml
+name: Bash tests
+on: [push, pull_request]
+jobs:
+  bash:
+    uses: sproncy/.github-actions/.github/workflows/bats.yml@v1
+    with:
+      test-paths: tests/
+      # Auto-detects scripts/ + tests/ + bin/ when shellcheck-paths is empty
+```
+
+Pinning bats and customising shellcheck scope:
+
+```yaml
+jobs:
+  bash:
+    uses: sproncy/.github-actions/.github/workflows/bats.yml@v1
+    with:
+      bats-version: "1.11.0"
+      test-paths: "tests/sops tests/restore"
+      shellcheck-paths: "scripts lib"
+      shellcheck-args: "-x --source-path=SCRIPTDIR -e SC2034"
+```
+
 ---
 
 ## Composite actions

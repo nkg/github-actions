@@ -10,10 +10,12 @@ Sproncy org. Consumed by ~20 sibling repos via `uses:` pinned tags.
 ├── workflows/             # reusable workflows (callable via `uses:`)
 │   ├── ansible.yml
 │   ├── auto-assign.yml
+│   ├── bats.yml
 │   ├── claude.yml
 │   ├── claude-code-review.yml
 │   ├── compose-validate.yml
 │   ├── container-security.yml
+│   ├── dependabot-auto-merge.yml
 │   ├── docker-build.yml
 │   ├── elixir.yml
 │   ├── expo.yml
@@ -21,6 +23,7 @@ Sproncy org. Consumed by ~20 sibling repos via `uses:` pinned tags.
 │   ├── go.yml
 │   ├── komodo-deploy.yml
 │   ├── lint-workflows.yml
+│   ├── molecule.yml
 │   ├── node-bun.yml
 │   ├── opentofu.yml
 │   ├── python-uv.yml
@@ -28,7 +31,9 @@ Sproncy org. Consumed by ~20 sibling repos via `uses:` pinned tags.
 │   ├── scrapy.yml
 │   ├── secret-scan.yml
 │   ├── self-test.yml        # this repo's own CI
-│   └── sops-audit.yml
+│   ├── sops-audit.yml
+│   ├── toml-lint.yml
+│   └── turbo.yml
 ├── actions/               # composite actions (callable via `uses:` from steps)
 │   ├── setup-cosign/
 │   ├── setup-deps-reader/
@@ -106,11 +111,14 @@ steps:
 | `fastapi.yml`         | python-uv + import smoke + OpenAPI export/diff                   |
 | `scrapy.yml`          | python-uv + `scrapy list` + `scrapy check` (+ optional smoke)    |
 | `node-bun.yml`        | Bun-based Node/TS: install, lint, typecheck, test, build         |
+| `turbo.yml`           | Bun + Turborepo monorepo (cache, tasks, optional filters)        |
 | `elixir.yml`          | Mix: deps, format check, credo, test (matrix on otp/elixir)      |
 | `go.yml`              | Go: gofmt, vet, optional staticcheck/govulncheck, test+coverage  |
 | `expo.yml`            | Expo/RN: install, lint, typecheck, optional EAS build            |
 | `opentofu.yml`        | OpenTofu: fmt, init, validate, plan (apply gated by env)         |
 | `ansible.yml`         | ansible-lint + syntax check                                      |
+| `molecule.yml`        | Matrix `molecule test` across Ansible roles                      |
+| `toml-lint.yml`       | taplo fmt --check + Python tomllib parse over all `.toml` files  |
 | `docker-build.yml`    | buildx multi-arch build + push to GHCR                           |
 | `compose-validate.yml`| `docker compose config` across profiles (DinD-safe pattern)      |
 | `komodo-deploy.yml`   | POST to Komodo's /api/execute; optional poll-until-complete      |
@@ -123,6 +131,7 @@ steps:
 | `container-security.yml`| Trivy scan of every image in a compose file or explicit list     |
 | `sops-audit.yml`        | Verify SOPS encryption + plaintext-secret scan + shellcheck      |
 | `lint-workflows.yml`    | actionlint + yamllint for the consumer's `.github/` tree         |
+| `bats.yml`              | bats-core test runner + companion shellcheck job (both opt-out)  |
 
 ### Bot / automation
 
@@ -131,6 +140,7 @@ steps:
 | `claude.yml`              | `@claude` on-demand bot (issues, PRs, review comments)         |
 | `claude-code-review.yml`  | Automated Claude code review on PR open/sync                   |
 | `auto-assign.yml`         | Auto-assign new issues and PRs to a user list                  |
+| `dependabot-auto-merge.yml`| Auto-merges Dependabot PRs (major bumps gated by default)     |
 
 ## Available composite actions
 
