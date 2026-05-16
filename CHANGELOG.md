@@ -6,6 +6,25 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ## [Unreleased]
 
+### Added
+
+- **Phase 4 — Cross-org workflows (lifted from HordiaLabs + Regularmusic):**
+  - `dependabot-auto-merge.yml` — auto-merges Dependabot PRs once required
+    checks pass. `merge-strategy` input (squash/merge/rebase) and
+    `auto-merge-major` toggle (default false). Lift from
+    HordiaLabs/store-clickhouse.
+  - `molecule.yml` — matrix `molecule test` across a list of Ansible
+    roles. Collapses the per-role-job repetition seen in
+    Regularmusic/iac (14 near-identical jobs → 1 matrix). Inputs cover
+    driver, scenario, requirements file.
+  - `toml-lint.yml` — taplo `fmt --check` plus Python `tomllib` parse
+    over every `*.toml`. Two independent jobs so consumers can disable
+    either. Lift from Regularmusic/komodo.
+  - `turbo.yml` — Bun + Turborepo with `.turbo` cache, configurable
+    tasks + optional workspace `--filter`. Designed to compose with
+    `dorny/paths-filter` in the caller stub. Lift from
+    Regularmusic/web-platform.
+
 ## [1.0.0] - 2026-05-15
 
 First usable release. Prior commits on `main` shipped only a placeholder

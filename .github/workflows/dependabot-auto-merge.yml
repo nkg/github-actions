@@ -1,0 +1,49 @@
+name: Dependabot auto-merge
+
+# Auto-merges Dependabot PRs once required checks pass. Major version
+# bumps are gated by default since they usually need a human review.
+# Lift from HordiaLabs/store-clickhouse generalised with strategy + major
+# toggle inputs.
+
+on:
+  workflow_call:
+    inputs:
+      runs-on:
+        type: string
+        default: "ubuntu-latest"
+      merge-strategy:
+        description: "squash | merge | rebase"
+        type: string
+        default: "squash"
+      auto-merge-major:
+        description: "Also auto-merge major version bumps (off by default — usually wants a human)"
+        type: boolean
+        default: false
+
+jobs:
+  auto-merge:
+    if: github.actor == 'dependabot[bot]'
+    runs-on: ${{ inputs.runs-on }}
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Fetch Dependabot metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@v3
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Auto-merge
+        if: inputs.auto-merge-major || steps.metadata.outputs.update-type != 'version-update:semver-major'
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          STRATEGY: ${{ inputs.merge-strategy }}
+        run: |
+          set -euo pipefail
+          case "$STRATEGY" in
+            squash|merge|rebase) ;;
+            *) echo "::error::invalid merge-strategy: $STRATEGY (expected squash|merge|rebase)"; exit 1 ;;
+          esac
+          gh pr merge --auto --"$STRATEGY" "$PR_URL"
