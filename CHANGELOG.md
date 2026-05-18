@@ -6,6 +6,8 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ## [Unreleased]
 
+## [1.1.2] - 2026-05-18
+
 ### Fixed
 
 - `claude-code-review.yml` declared `pull-requests: read` and
@@ -163,7 +165,8 @@ README; everything below is the actual content of this repo.
 - Bumped `actions/checkout` from `@v4` to `@v6` across all existing
   workflows for consistency with new files.
 
-[Unreleased]: https://github.com/sproncy/.github-actions/compare/v1.1.1...HEAD
+[Unreleased]: https://github.com/sproncy/.github-actions/compare/v1.1.2...HEAD
+[1.1.2]: https://github.com/sproncy/.github-actions/compare/v1.1.1...v1.1.2
 [1.1.1]: https://github.com/sproncy/.github-actions/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/sproncy/.github-actions/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/sproncy/.github-actions/releases/tag/v1.0.0
