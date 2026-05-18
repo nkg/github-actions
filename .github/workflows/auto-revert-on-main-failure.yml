@@ -1,0 +1,112 @@
+name: Auto-revert when main CI fails
+
+# Opens a revert PR when CI on the default branch fails after a merge.
+#
+# Why: private repos on the GitHub free plan can't use branch-protection
+# rules, so there's no server-side gate that stops a red PR being merged.
+# This workflow reacts after the fact — it does NOT auto-merge. The user
+# reviews the revert PR and decides whether to merge it (revert) or close
+# it (fix-forward).
+#
+# The workflow_run trigger and its if-guard have to live in the calling
+# workflow because GitHub only evaluates workflow_run events on the
+# default-branch copy of a workflow file. The caller passes the bad SHA
+# and failed-run URL through as inputs.
+#
+# See examples/README.md for the caller stub.
+
+on:
+  workflow_call:
+    inputs:
+      bad-sha:
+        description: "The commit SHA that broke main (typically github.event.workflow_run.head_sha)"
+        type: string
+        required: true
+      failed-run-url:
+        description: "URL of the failing CI run (typically github.event.workflow_run.html_url)"
+        type: string
+        required: true
+      default-branch:
+        description: "Branch to revert on. Almost always main."
+        type: string
+        default: "main"
+      runs-on:
+        type: string
+        default: "ubuntu-latest"
+
+jobs:
+  open-revert-pr:
+    runs-on: ${{ inputs.runs-on }}
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.default-branch }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Open revert PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BAD_SHA: ${{ inputs.bad-sha }}
+          FAILED_RUN_URL: ${{ inputs.failed-run-url }}
+          DEFAULT_BRANCH: ${{ inputs.default-branch }}
+        run: |
+          set -euo pipefail
+
+          # Bail if the branch has moved past the failing commit — a
+          # later commit will get its own evaluation, and reverting an
+          # old one in the middle of the history would just conflict.
+          if [[ "$(git rev-parse "$DEFAULT_BRANCH")" != "$BAD_SHA" ]]; then
+            echo "$DEFAULT_BRANCH is no longer at $BAD_SHA — skipping revert"
+            exit 0
+          fi
+
+          # Skip if the commit is itself a revert — don't loop.
+          subject=$(git log -1 --pretty=%s "$BAD_SHA")
+          case "$subject" in
+            [Rr]evert*) echo "$BAD_SHA is already a revert — skipping"; exit 0 ;;
+          esac
+
+          short="${BAD_SHA:0:7}"
+          branch="auto-revert/${short}"
+
+          # Skip if a revert PR for this SHA already exists.
+          if gh pr list --head "$branch" --state all --json number --jq 'length' | grep -q '^[1-9]'; then
+            echo "revert PR for $short already exists — skipping"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+
+          # --mainline 1 is only valid on merge commits. Detect by
+          # counting parents on the bad SHA (>1 means merge commit).
+          parent_count=$(git rev-list --parents -n 1 "$BAD_SHA" | awk '{print NF - 1}')
+          if [[ "$parent_count" -gt 1 ]]; then
+            git revert --no-edit --mainline 1 "$BAD_SHA"
+          else
+            git revert --no-edit "$BAD_SHA"
+          fi
+
+          git push origin "$branch"
+
+          gh pr create \
+            --title "revert: ${subject}" \
+            --base "$DEFAULT_BRANCH" \
+            --head "$branch" \
+            --body "$(cat <<EOF
+          Automated revert of \`$short\` — CI failed on \`$DEFAULT_BRANCH\` after that commit landed.
+
+          Failing run: $FAILED_RUN_URL
+
+          Review the failure, then either:
+          - **Merge this PR** to restore \`$DEFAULT_BRANCH\` to green and fix-forward in a follow-up.
+          - **Close this PR** if you'd rather fix-forward without reverting (e.g. the failure is flaky).
+
+          This workflow does not auto-merge — it just opens the PR.
+          EOF
+          )"

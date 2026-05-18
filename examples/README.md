@@ -393,6 +393,33 @@ jobs:
     #   auto-merge-major: true
 ```
 
+### Auto-revert when main CI fails
+
+For repos that can't use branch protection (private repos on the free plan). When CI on `main` fails after a merge, opens a revert PR so `main` can be restored quickly. Does **not** auto-merge — review the revert PR and either merge it (revert) or close it (fix-forward).
+
+The `workflow_run` trigger and the if-guard live in the caller because GitHub only evaluates `workflow_run` events on the default-branch copy of the workflow file. Replace `CI` below with the exact `name:` of your repo's main CI workflow.
+
+```yaml
+name: Auto-revert when main CI fails
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+jobs:
+  revert:
+    if: |
+      github.event.workflow_run.conclusion == 'failure' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.event == 'push'
+    permissions:
+      contents: write
+      pull-requests: write
+    uses: sproncy/.github-actions/.github/workflows/auto-revert-on-main-failure.yml@v1
+    with:
+      bad-sha: ${{ github.event.workflow_run.head_sha }}
+      failed-run-url: ${{ github.event.workflow_run.html_url }}
+```
+
 ---
 
 ## Monorepo / specialty
