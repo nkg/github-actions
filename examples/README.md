@@ -275,7 +275,9 @@ jobs:
 ### Claude on-demand (`@claude` bot)
 
 Consumer stub — secrets must be declared explicitly because the upstream
-action runs against your token:
+action runs against your token. The top-level `permissions:` block is
+**required** because the called workflow can't widen permissions beyond
+what the caller granted (and the org default is read-only on contents):
 
 ```yaml
 name: Claude
@@ -288,6 +290,12 @@ on:
     types: [opened, assigned]
   pull_request_review:
     types: [submitted]
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+  id-token: write
+  actions: read
 jobs:
   claude:
     uses: sproncy/.github-actions/.github/workflows/claude.yml@v1
@@ -297,14 +305,45 @@ jobs:
 
 ### Claude code review on every PR
 
+Note: `claude-code-action@v1` self-validates that the workflow file on
+the PR matches the version on the default branch. On the PR that first
+introduces this wrapper, expect one "Workflow validation failed"
+failure — it's safe to ignore (the action's own message says so) and
+subsequent PRs will be green. Add a `paths-ignore` on the wrapper file
+so benign edits to it don't fail the same check.
+
 ```yaml
 name: Claude code review
 on:
   pull_request:
     types: [opened, synchronize, ready_for_review, reopened]
+    paths-ignore:
+      - ".github/workflows/claude-code-review.yml"
+permissions:
+  contents: read
+  pull-requests: write   # required to post review comments
+  issues: write          # required if reviewer ever opens issues
+  id-token: write
 jobs:
   review:
     uses: sproncy/.github-actions/.github/workflows/claude-code-review.yml@v1
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+```
+
+Pass a repo-specific prompt + restricted gh-tools allow-list:
+
+```yaml
+jobs:
+  review:
+    uses: sproncy/.github-actions/.github/workflows/claude-code-review.yml@v1
+    with:
+      prompt: |
+        REPO: ${{ github.repository }}
+        PR NUMBER: ${{ github.event.pull_request.number }}
+
+        Please review this pull request and provide feedback on …
+      claude-args: '--allowed-tools "Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"'
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 ```
