@@ -48,14 +48,24 @@ jobs:
       (inputs.filter-first-time-only && (github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR' || github.event.pull_request.author_association == 'FIRST_TIMER'))
     runs-on: ${{ inputs.runs-on }}
     timeout-minutes: ${{ inputs.timeout-minutes }}
+    # `claude-code-action` posts review comments back on the PR, so it
+    # needs write on pull-requests and issues. The `claude.yml` (bot)
+    # workflow stays at `read` because that one routes comments through
+    # the OAuth-token-scoped path inside the action, not the workflow's
+    # GITHUB_TOKEN. Mirrors the working sproncy-accord local copy.
     permissions:
       contents: read
-      pull-requests: read
-      issues: read
+      pull-requests: write
+      issues: write
       id-token: write
     steps:
       - uses: actions/checkout@v6
         with:
+          # claude-code-action self-validates that the workflow file
+          # on the PR matches the version on the default branch
+          # (security control — stops PRs from rewriting the review
+          # prompt). Consumers can `paths-ignore` their wrapper file
+          # to dodge the failure on benign edits to it.
           fetch-depth: 1
 
       - name: Run Claude Code Review
