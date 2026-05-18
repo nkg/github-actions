@@ -6,6 +6,22 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ## [Unreleased]
 
+### Added
+
+- `auto-revert-on-main-failure.yml` — reusable workflow that opens a
+  revert PR when CI on the default branch fails after a merge. For
+  private repos on the GitHub free plan, branch-protection rules are
+  unavailable, so there's no server-side gate against merging a red PR;
+  this reacts after the fact. Caller declares the `workflow_run` trigger
+  and an if-guard (the trigger has to live in the caller because GitHub
+  only evaluates `workflow_run` events on the default-branch copy), then
+  passes `bad-sha` and `failed-run-url` to the reusable. The reusable
+  bails if main has moved past the failing commit, if the failing commit
+  is itself a revert, or if a revert PR for that SHA already exists.
+  Does **not** auto-merge — review the revert PR and decide whether to
+  merge (revert) or close (fix-forward). Lifted from
+  sproncy/ReactNativeApp#170.
+
 ## [1.1.2] - 2026-05-18
 
 ### Fixed

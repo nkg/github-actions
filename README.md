@@ -10,6 +10,7 @@ Sproncy org. Consumed by ~20 sibling repos via `uses:` pinned tags.
 ├── workflows/             # reusable workflows (callable via `uses:`)
 │   ├── ansible.yml
 │   ├── auto-assign.yml
+│   ├── auto-revert-on-main-failure.yml
 │   ├── bats.yml
 │   ├── claude.yml
 │   ├── claude-code-review.yml
@@ -141,6 +142,7 @@ steps:
 | `claude-code-review.yml`  | Automated Claude code review on PR open/sync                   |
 | `auto-assign.yml`         | Auto-assign new issues and PRs to a user list                  |
 | `dependabot-auto-merge.yml`| Auto-merges Dependabot PRs (major bumps gated by default)     |
+| `auto-revert-on-main-failure.yml`| Opens a revert PR when main CI fails (free-plan branch-protection workaround) |
 
 ## Available composite actions
 
