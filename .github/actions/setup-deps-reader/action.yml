@@ -51,6 +51,33 @@ runs:
       env:
         TOKEN: ${{ steps.app-token.outputs.token }}
       run: |
+        # If a consumer repo previously used the `url.<token>@github.com/.insteadOf`
+        # pattern (typed inline or via a local composite), those entries are
+        # still sitting in `~/.gitconfig` on every persistent self-hosted
+        # runner that ever ran the old pattern.  url.insteadOf rewrites
+        # happen before credential helpers are consulted, so git silently
+        # substitutes the *expired* baked-in token into every github.com
+        # URL and GitHub responds 401 with the misleading
+        #   "Invalid username or token. Password authentication is not
+        #    supported for Git operations."
+        # message — even though the fresh deps-reader token we just minted
+        # is waiting in $RUNNER_TEMP/git-credentials.
+        #
+        # Purge any url.*.insteadOf entries before installing the helper.
+        # `git config --get-regexp` lowercases key names in its output
+        # (insteadOf → insteadof), so the regex matches the lowercase form.
+        # See sproncy/sproncy-distillery#128 for the original incident.
+        if git config --global --get-regexp '^url\..*\.insteadof$' >/dev/null 2>&1; then
+          echo "Found stale url.*.insteadOf entries — clearing:"
+          git config --global --get-regexp '^url\..*\.insteadof$' | sed 's/:.*$/=<redacted>/'
+          while IFS=' ' read -r key _value; do
+            section=${key%.insteadof}
+            git config --global --remove-section "$section" 2>/dev/null || true
+          done < <(git config --global --get-regexp '^url\..*\.insteadof$' || true)
+        else
+          echo "No url.*.insteadOf entries to clear."
+        fi
+
         # Per-job credential file in $RUNNER_TEMP — disappears with the runner.
         cred_file="$RUNNER_TEMP/git-credentials"
         : > "$cred_file"

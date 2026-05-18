@@ -6,6 +6,23 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ## [Unreleased]
 
+### Fixed
+
+- `setup-deps-reader` composite now purges any pre-existing
+  `url.*.insteadOf` entries from `~/.gitconfig` before installing the
+  credential helper. Persistent self-hosted runners that previously
+  ran an inline `git config --global url.<token>@github.com/.insteadOf
+  https://github.com/` pattern (which is what every HordiaLabs and
+  Sproncy CI used before they adopted the credential.helper approach)
+  carry the stale rewrite across jobs — git evaluates url.insteadOf
+  before consulting credential helpers, so it silently substitutes
+  the now-expired baked-in token into every github.com URL and the
+  fresh token from the helper never gets used. GitHub then 401s with
+  the misleading `Invalid username or token. Password authentication
+  is not supported.` message. Diagnosed in
+  sproncy/sproncy-distillery#128; same `--remove-section` cleanup
+  mirrored here so the next adopter doesn't hit the same trap.
+
 ## [1.1.0] - 2026-05-16
 
 ### Added
