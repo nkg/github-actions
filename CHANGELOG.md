@@ -6,6 +6,14 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ## [Unreleased]
 
+### Fixed
+
+- `claude-code-review.yml` declared `pull-requests: read` and
+  `issues: read`, but `anthropics/claude-code-action@v1` needs `write`
+  on both to post review comments back on the PR. The old defaults
+  would have made every adopted review bot silently fail to comment.
+  Bumped to `write`; mirrors the working local copy in sproncy-accord.
+
 ## [1.1.1] - 2026-05-18
 
 ### Fixed
