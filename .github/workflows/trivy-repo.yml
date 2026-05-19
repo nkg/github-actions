@@ -1,0 +1,110 @@
+name: Trivy repo scan (filesystem + IaC)
+
+# Runs Trivy in `fs` or `config` mode against the checked-out repo —
+# catches CVEs in lockfiles/dependencies (fs) and IaC misconfigurations
+# in Terraform/Kubernetes/Dockerfile/Helm/etc. (config).
+#
+# This is the complement to container-security.yml, which scans built
+# images. tfsec is intentionally not used here — Aqua merged tfsec into
+# Trivy, and `scan-type: config` is the maintained successor.
+
+on:
+  workflow_call:
+    inputs:
+      runs-on:
+        type: string
+        default: "ubuntu-latest"
+      scan-type:
+        description: "Trivy scan mode: fs (lockfiles/deps) or config (IaC misconfig)"
+        type: string
+        default: "fs"
+      severity:
+        description: "Comma-separated severities that fail the build"
+        type: string
+        default: "CRITICAL,HIGH"
+      ignore-unfixed:
+        description: "Skip vulnerabilities that don't yet have a fix. Only applies to scan-type: fs."
+        type: boolean
+        default: true
+      skip-dirs:
+        description: "Newline- or comma-separated directories Trivy should skip"
+        type: string
+        default: ""
+      skip-files:
+        description: "Newline- or comma-separated files Trivy should skip"
+        type: string
+        default: ""
+      scan-ref:
+        description: "Path to scan. Defaults to the repo root."
+        type: string
+        default: "."
+      upload-sarif:
+        description: "Upload SARIF to the GitHub Security tab. Auto-skipped on pull_request (fork PRs can't write security-events)."
+        type: boolean
+        default: true
+      trivy-action-version:
+        description: "Pinned version of aquasecurity/trivy-action"
+        type: string
+        default: "0.36.0"
+      timeout-minutes:
+        type: number
+        default: 15
+
+jobs:
+  trivy:
+    runs-on: ${{ inputs.runs-on }}
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    # security-events:write + actions:read are required by
+    # github/codeql-action/upload-sarif.
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
+    steps:
+      - name: Validate scan-type
+        env:
+          SCAN_TYPE: ${{ inputs.scan-type }}
+        run: |
+          case "$SCAN_TYPE" in
+            fs|config) ;;
+            *) echo "::error::invalid scan-type: $SCAN_TYPE (expected fs|config)"; exit 1 ;;
+          esac
+
+      - uses: actions/checkout@v6
+
+      - name: Trivy scan (table)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: ${{ inputs.scan-type }}
+          scan-ref: ${{ inputs.scan-ref }}
+          format: table
+          exit-code: '1'
+          severity: ${{ inputs.severity }}
+          # ignore-unfixed is only meaningful in fs/image mode. Trivy's
+          # config scan has no fix metadata, so this flag is a no-op
+          # there — passing it unconditionally is harmless.
+          ignore-unfixed: ${{ inputs.ignore-unfixed }}
+          skip-dirs: ${{ inputs.skip-dirs }}
+          skip-files: ${{ inputs.skip-files }}
+
+      - name: Trivy scan (SARIF)
+        if: always() && inputs.upload-sarif && github.event_name != 'pull_request'
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: ${{ inputs.scan-type }}
+          scan-ref: ${{ inputs.scan-ref }}
+          format: sarif
+          output: trivy-${{ inputs.scan-type }}.sarif
+          severity: ${{ inputs.severity }}
+          ignore-unfixed: ${{ inputs.ignore-unfixed }}
+          skip-dirs: ${{ inputs.skip-dirs }}
+          skip-files: ${{ inputs.skip-files }}
+
+      - name: Upload SARIF
+        if: always() && inputs.upload-sarif && github.event_name != 'pull_request'
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: trivy-${{ inputs.scan-type }}.sarif
+          # Distinguish fs vs config findings in the Security tab so they
+          # don't overwrite each other when both are wired up.
+          category: trivy-${{ inputs.scan-type }}
