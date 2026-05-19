@@ -233,6 +233,32 @@ jobs:
         ghcr.io/sproncy/web:latest
 ```
 
+### Trivy repo scan (filesystem + IaC)
+
+Complement to `container-security.yml`. Scans the checked-out repo for lockfile CVEs (`scan-type: fs`) or IaC misconfigurations in Terraform/Kubernetes/Dockerfile/Helm (`scan-type: config`). Aqua merged `tfsec` into Trivy — `scan-type: config` is the maintained successor and covers the same Terraform checks.
+
+```yaml
+name: Repo security
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: '0 6 * * 1'
+jobs:
+  fs:
+    uses: sproncy/.github-actions/.github/workflows/trivy-repo.yml@v1
+    with:
+      scan-type: fs
+  config:
+    uses: sproncy/.github-actions/.github/workflows/trivy-repo.yml@v1
+    with:
+      scan-type: config
+      skip-dirs: |
+        node_modules
+        .terraform
+```
+
 ### SOPS audit
 
 ```yaml
@@ -418,6 +444,53 @@ jobs:
     with:
       bad-sha: ${{ github.event.workflow_run.head_sha }}
       failed-run-url: ${{ github.event.workflow_run.html_url }}
+```
+
+### PR labeler (`actions/labeler`)
+
+Not shipped as a reusable — every repo's label taxonomy is different, so the per-repo `.github/labeler.yml` config is the whole point and a wrapper would add nothing. Drop this stub into the consumer and adjust the config below.
+
+`.github/workflows/labeler.yml`:
+
+```yaml
+name: Pull request labeler
+on:
+  # pull_request_target is required if you want to label PRs from forks.
+  # Public Sproncy repos with external contributors should use it; for
+  # internal-only repos, pull_request is fine and safer.
+  pull_request:
+permissions:
+  contents: read
+  pull-requests: write
+jobs:
+  label:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/labeler@v5
+```
+
+`.github/labeler.yml` (the per-repo config the action consumes):
+
+```yaml
+frontend:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'web/**'
+          - 'apps/web/**'
+backend:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'api/**'
+          - 'lib/**'
+ci:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '.github/**'
+docs:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'docs/**'
+          - '**/*.md'
 ```
 
 ---

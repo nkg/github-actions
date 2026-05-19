@@ -8,6 +8,21 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ### Added
 
+- `trivy-repo.yml` — reusable workflow that runs Trivy in `fs`
+  (filesystem/lockfile CVE scan) or `config` (IaC misconfiguration:
+  Terraform, Kubernetes, Dockerfile, Helm) mode against the
+  checked-out repo. Complements the existing `container-security.yml`,
+  which scans built images. tfsec is intentionally not used —
+  Aqua merged tfsec into Trivy, and `scan-type: config` is the
+  maintained successor with the same Terraform check coverage. SARIF
+  upload is tagged with a per-scan-type category so `fs` and `config`
+  findings don't overwrite each other in the Security tab.
+
+- `examples/README.md` stub for `actions/labeler`. Not shipped as a
+  reusable because every repo's label taxonomy is different — the
+  per-repo `.github/labeler.yml` config carries the value and a
+  wrapper would add nothing on top of the 5-line action invocation.
+
 - `auto-revert-on-main-failure.yml` — reusable workflow that opens a
   revert PR when CI on the default branch fails after a merge. For
   private repos on the GitHub free plan, branch-protection rules are
