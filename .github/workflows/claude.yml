@@ -10,9 +10,9 @@ on:
   workflow_call:
     inputs:
       runs-on:
-        description: "Runner label(s) (default: ubuntu-latest; pass a self-hosted label list to route to your pool)"
+        description: "Runner label(s). Defaults to the self-hosted pool. Public/open-source repos should opt out by passing \"ubuntu-latest\"."
         type: string
-        default: "ubuntu-latest"
+        default: "[self-hosted, linux, x64]"
       timeout-minutes:
         description: "Job timeout"
         type: number
