@@ -8,8 +8,9 @@ on:
   workflow_call:
     inputs:
       runs-on:
+        description: "Runner label(s) as a JSON array string (parsed with fromJSON). Pass '[\"self-hosted\", \"linux\", \"x64\"]' to use the self-hosted pool."
         type: string
-        default: "ubuntu-latest"
+        default: '["ubuntu-latest"]'
       assignees:
         description: "Comma- or newline-separated GitHub usernames to assign"
         type: string
@@ -21,7 +22,7 @@ on:
 
 jobs:
   auto-assign:
-    runs-on: ${{ inputs.runs-on }}
+    runs-on: ${{ fromJSON(inputs.runs-on) }}
     permissions:
       issues: write
       pull-requests: write
