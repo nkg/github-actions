@@ -8,6 +8,16 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ### Added
 
+- `stale-run-cleanup.yml` — scheduled reusable workflow that cancels
+  **superseded** queued runs (older queued runs for a `(workflow,
+  head_branch)` that already has a newer run) so re-pushes/rebases don't
+  stack up on a shared self-hosted runner pool. Cancels by supersession,
+  never by age alone — a run merely waiting on a busy runner is left to
+  take its turn. A `min-age-minutes` grace period avoids racing rapid
+  successive pushes (which a consumer's `concurrency:` block already
+  handles at push time). `dry-run` input for safe trials. Caller wires
+  the `schedule:` cron; see `examples/README.md`.
+
 - `trivy-repo.yml` — reusable workflow that runs Trivy in `fs`
   (filesystem/lockfile CVE scan) or `config` (IaC misconfiguration:
   Terraform, Kubernetes, Dockerfile, Helm) mode against the

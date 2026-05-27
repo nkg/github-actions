@@ -446,6 +446,29 @@ jobs:
       failed-run-url: ${{ github.event.workflow_run.html_url }}
 ```
 
+### Stale run cleanup
+
+Cancels **superseded** queued runs — older queued runs for a `(workflow, branch)` that already has a newer run — so re-pushes/rebases don't stack up on a shared (self-hosted) runner pool. A `concurrency:` block on each workflow is the first line of defence (cancels at push time); this scheduled sweep is the safety net for runs that slipped through (e.g. created before the block existed, or across different workflows).
+
+It cancels by **supersession, never by age alone** — a run that's merely waiting on a busy runner is left to run its turn.
+
+```yaml
+name: Stale run cleanup
+on:
+  schedule:
+    - cron: '*/20 * * * *'   # every 20 min
+  workflow_dispatch:
+jobs:
+  cleanup:
+    uses: sproncy/.github-actions/.github/workflows/stale-run-cleanup.yml@v1
+    # with:
+    #   min-age-minutes: 5     # grace period before a superseded run is cancelled
+    #   dry-run: true          # log only
+    #   runs-on: ubuntu-latest # if your self-hosted pool is saturated, keep this
+    #                          # on a hosted/maintenance runner or the cleanup
+    #                          # job queues behind the very backlog it clears.
+```
+
 ### PR labeler (`actions/labeler`)
 
 Not shipped as a reusable — every repo's label taxonomy is different, so the per-repo `.github/labeler.yml` config is the whole point and a wrapper would add nothing. Drop this stub into the consumer and adjust the config below.
