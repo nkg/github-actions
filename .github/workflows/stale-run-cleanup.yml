@@ -1,0 +1,99 @@
+name: Stale run cleanup
+
+# Cancels superseded queued workflow runs so they don't clog a shared
+# (self-hosted) runner pool. A run is "superseded" when a NEWER run exists
+# for the same workflow + head branch — only the newest queued/in-progress
+# run per (workflow, branch) is kept; older queued ones are cancelled.
+#
+# Why supersession and not age: a run can sit queued for a long time simply
+# because every runner is busy (that's the exact situation this is meant to
+# relieve). Cancelling by age alone would kill runs that are legitimately
+# waiting their turn. Supersession is always safe — the newer commit's run
+# replaces the older one's result.
+#
+# The `min-age-minutes` guard adds a grace period so a run isn't cancelled
+# the instant a newer one is created (avoids racing rapid successive pushes
+# that a `concurrency:` block on the consumer would already handle).
+#
+# Run this on a schedule from the consumer repo. See examples/README.md.
+
+on:
+  workflow_call:
+    inputs:
+      min-age-minutes:
+        description: "Only cancel a superseded run once it has been queued at least this long"
+        type: number
+        default: 5
+      dry-run:
+        description: "Log what would be cancelled without cancelling"
+        type: boolean
+        default: false
+      runs-on:
+        description: "Runner label(s). Note: if your pool is fully saturated this job queues too; a maintenance/GitHub-hosted runner avoids the chicken-and-egg."
+        type: string
+        default: "ubuntu-latest"
+
+jobs:
+  cleanup:
+    runs-on: ${{ inputs.runs-on }}
+    permissions:
+      actions: write
+    steps:
+      - name: Cancel superseded queued runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          MIN_AGE_MINUTES: ${{ inputs.min-age-minutes }}
+          DRY_RUN: ${{ inputs.dry-run }}
+        run: |
+          set -euo pipefail
+
+          # All not-yet-finished runs (queued + in_progress) so we can tell
+          # which queued runs have a newer sibling. requested/waiting are
+          # pre-queue states; include them so a brand-new run still counts
+          # as the "newest" and protects an older queued one from lingering.
+          runs="$(gh api --paginate \
+            "repos/$REPO/actions/runs?per_page=100" \
+            --jq '.workflow_runs[]
+              | select(.status == "queued" or .status == "in_progress"
+                       or .status == "requested" or .status == "waiting")
+              | {id, workflow_id, head_branch, status, created_at}')"
+
+          if [ -z "$runs" ]; then
+            echo "No active runs."
+            exit 0
+          fi
+
+          # For each (workflow_id, head_branch) group, keep the newest run;
+          # emit the ids of older *queued* runs whose age >= MIN_AGE_MINUTES.
+          cutoff_epoch=$(( $(date -u +%s) - MIN_AGE_MINUTES * 60 ))
+          to_cancel="$(printf '%s\n' "$runs" | jq -rs --argjson cutoff "$cutoff_epoch" '
+            group_by(.workflow_id, .head_branch)[]
+            | sort_by(.created_at) | reverse
+            | .[1:]                                  # drop the newest
+            | .[]
+            | select(.status == "queued")
+            | select((.created_at | fromdateiso8601) <= $cutoff)
+            | .id')"
+
+          if [ -z "$to_cancel" ]; then
+            echo "No superseded queued runs to cancel."
+            exit 0
+          fi
+
+          echo "Superseded queued runs:"
+          printf '  %s\n' $to_cancel
+
+          if [ "$DRY_RUN" = "true" ]; then
+            echo "dry-run: not cancelling."
+            exit 0
+          fi
+
+          for id in $to_cancel; do
+            echo "Cancelling run $id"
+            # A run can finish/transition between listing and now; don't let
+            # one 409/404 abort the sweep.
+            gh api -X POST "repos/$REPO/actions/runs/$id/cancel" >/dev/null \
+              && echo "  cancelled $id" \
+              || echo "  skip $id (already finishing?)"
+          done
