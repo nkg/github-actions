@@ -8,6 +8,14 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ### Added
 
+- `elixir.yml` — `run-deps-audit` input (default `false`) that runs
+  `mix deps.audit` (the `mix_audit` package) to scan `mix.lock` for
+  dependencies with known CVEs. Complements the existing `run-hex-audit`
+  (retired-package check) and `run-sobelow` (Phoenix security scanner)
+  inputs. Requires the consumer to depend on `{:mix_audit, "~> 2.1",
+  only: [:dev, :test]}`. Additive and off by default, so no behaviour
+  change for current callers.
+
 - `stale-run-cleanup.yml` — scheduled reusable workflow that cancels
   **superseded** queued runs (older queued runs for a `(workflow,
   head_branch)` that already has a newer run) so re-pushes/rebases don't
