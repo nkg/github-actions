@@ -100,6 +100,22 @@ jobs:
 (`claude`, `claude-code-review`, `sops-audit`) prefer declaring secrets
 explicitly so it's obvious what the workflow can see.
 
+### Choosing a runner
+
+Every reusable takes a `runs-on` input that is a **JSON array string**, parsed
+with `fromJSON`. Pass a quoted JSON array — not a bare label:
+
+```yaml
+    with:
+      runs-on: '["ubuntu-latest"]'              # GitHub-hosted (the default)
+      # runs-on: '["self-hosted", "linux", "x64"]'   # self-hosted pool
+```
+
+A bare string like `runs-on: ubuntu-latest` (or unquoted `'[self-hosted, ...]'`)
+will not parse and the job will fail to schedule. The default is
+`'["ubuntu-latest"]'` for every reusable except the `claude*` bot workflows,
+which default to the self-hosted pool.
+
 ## Consuming a composite action
 
 ```yaml

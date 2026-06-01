@@ -12,8 +12,9 @@ on:
   workflow_call:
     inputs:
       runs-on:
+        description: "Runner label(s) as a JSON array string (parsed with fromJSON). Pass '[\"self-hosted\", \"linux\", \"x64\"]' to use the self-hosted pool."
         type: string
-        default: "ubuntu-latest"
+        default: '["ubuntu-latest"]'
       scan-type:
         description: "Trivy scan mode: fs (lockfiles/deps) or config (IaC misconfig)"
         type: string
@@ -52,7 +53,7 @@ on:
 
 jobs:
   trivy:
-    runs-on: ${{ inputs.runs-on }}
+    runs-on: ${{ fromJSON(inputs.runs-on) }}
     timeout-minutes: ${{ inputs.timeout-minutes }}
     # security-events:write + actions:read are required by
     # github/codeql-action/upload-sarif.

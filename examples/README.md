@@ -157,7 +157,7 @@ jobs:
         tracing
       env-vars: |
         GRAFANA_ADMIN_PASSWORD=ci-validate
-      runs-on: '[self-hosted, linux, x64]'
+      runs-on: '["self-hosted", "linux", "x64"]'
 ```
 
 ## Komodo deploy
@@ -198,7 +198,7 @@ jobs:
   gitleaks:
     uses: sproncy/.github-actions/.github/workflows/secret-scan.yml@v1
     with:
-      runs-on: '[self-hosted, linux, x64]'
+      runs-on: '["self-hosted", "linux", "x64"]'
 ```
 
 ### Container security (Trivy on compose images)
@@ -218,7 +218,7 @@ jobs:
     uses: sproncy/.github-actions/.github/workflows/container-security.yml@v1
     with:
       compose-file: docker-compose.yml
-      runs-on: '[self-hosted, linux, x64]'
+      runs-on: '["self-hosted", "linux", "x64"]'
 ```
 
 Or scan an explicit list:
@@ -271,7 +271,7 @@ jobs:
       encrypted-glob: '*.encrypted'
       shellcheck: true
       sops-config-changelog: true
-      runs-on: '[self-hosted, linux, x64]'
+      runs-on: '["self-hosted", "linux", "x64"]'
 ```
 
 ### Lint workflows
@@ -464,9 +464,9 @@ jobs:
     # with:
     #   min-age-minutes: 5     # grace period before a superseded run is cancelled
     #   dry-run: true          # log only
-    #   runs-on: ubuntu-latest # if your self-hosted pool is saturated, keep this
-    #                          # on a hosted/maintenance runner or the cleanup
-    #                          # job queues behind the very backlog it clears.
+    #   runs-on: '["ubuntu-latest"]' # if your self-hosted pool is saturated, keep
+    #                                # this on a hosted/maintenance runner or the
+    #                                # cleanup job queues behind the backlog it clears.
 ```
 
 ### PR labeler (`actions/labeler`)

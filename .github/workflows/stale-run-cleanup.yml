@@ -29,13 +29,13 @@ on:
         type: boolean
         default: false
       runs-on:
-        description: "Runner label(s). Note: if your pool is fully saturated this job queues too; a maintenance/GitHub-hosted runner avoids the chicken-and-egg."
+        description: "JSON array of runner label(s), parsed with fromJSON. A saturated pool queues this job too; use a maintenance/GitHub-hosted runner to avoid the chicken-and-egg."
         type: string
-        default: "ubuntu-latest"
+        default: '["ubuntu-latest"]'
 
 jobs:
   cleanup:
-    runs-on: ${{ inputs.runs-on }}
+    runs-on: ${{ fromJSON(inputs.runs-on) }}
     permissions:
       actions: write
     steps:
