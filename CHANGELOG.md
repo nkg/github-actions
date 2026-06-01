@@ -6,6 +6,25 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING (consumers): every reusable workflow now parses its
+  `runs-on` input with `fromJSON`, so the value must be a JSON array
+  string** — e.g. `'["ubuntu-latest"]'` or
+  `'["self-hosted", "linux", "x64"]'`. Previously most reusables took
+  `runs-on` as a bare scalar string. A caller still passing
+  `runs-on: ubuntu-latest` (or an unquoted `'[self-hosted, linux, x64]'`)
+  will fail to schedule — the value is taken as a single literal label,
+  no runner matches, and the job queues to the 24h timeout. Effective
+  defaults are unchanged: `'["ubuntu-latest"]'` everywhere except the
+  `claude*` bot workflows, which default to the self-hosted pool. This
+  completes the migration started piecemeal in #17/#18/#21 by converting
+  all 23 remaining reusables in one pass; `examples/README.md` callers
+  are updated to the JSON form. Per SemVer this is a breaking input
+  change for consumers.
+
+## [1.3.0] - 2026-06-01
+
 ### Added
 
 - `setup-token` — composite action that mints a short-lived GitHub App
@@ -35,6 +54,36 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
   handles at push time). `dry-run` input for safe trials. Caller wires
   the `schedule:` cron; see `examples/README.md`.
 
+### Fixed
+
+- `lint-workflows.yml` — parse `runs-on` with `fromJSON` so a self-hosted
+  pool passed as a JSON array string is honoured instead of being taken
+  as a single literal label; the `lint` jobs had been queuing to the 24h
+  cancel. `self-test.yml` caller corrected to valid JSON. Also silenced
+  an intentional `SC2086` word-split in `stale-run-cleanup.yml` that the
+  now-running actionlint job surfaced (#21).
+- `claude-code-review.yml` — skip Dependabot PRs so the review bot no
+  longer runs on automated dependency PRs (#20).
+
+## [1.2.2] - 2026-05-27
+
+### Fixed
+
+- `auto-assign.yml` and `claude.yml` — parse the `runs-on` input with
+  `fromJSON` so a self-hosted pool default is honoured instead of
+  stalling queued jobs (#18).
+
+## [1.2.1] - 2026-05-27
+
+### Fixed
+
+- `claude-code-review.yml` — parse the `runs-on` input with `fromJSON`
+  so multi-label self-hosted pools schedule correctly (#17).
+
+## [1.2.0] - 2026-05-21
+
+### Added
+
 - `trivy-repo.yml` — reusable workflow that runs Trivy in `fs`
   (filesystem/lockfile CVE scan) or `config` (IaC misconfiguration:
   Terraform, Kubernetes, Dockerfile, Helm) mode against the
@@ -44,11 +93,6 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
   maintained successor with the same Terraform check coverage. SARIF
   upload is tagged with a per-scan-type category so `fs` and `config`
   findings don't overwrite each other in the Security tab.
-
-- `examples/README.md` stub for `actions/labeler`. Not shipped as a
-  reusable because every repo's label taxonomy is different — the
-  per-repo `.github/labeler.yml` config carries the value and a
-  wrapper would add nothing on top of the 5-line action invocation.
 
 - `auto-revert-on-main-failure.yml` — reusable workflow that opens a
   revert PR when CI on the default branch fails after a merge. For
@@ -63,6 +107,17 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
   Does **not** auto-merge — review the revert PR and decide whether to
   merge (revert) or close (fix-forward). Lifted from
   sproncy/ReactNativeApp#170.
+
+- `examples/README.md` stub for `actions/labeler`. Not shipped as a
+  reusable because every repo's label taxonomy is different — the
+  per-repo `.github/labeler.yml` config carries the value and a
+  wrapper would add nothing on top of the 5-line action invocation.
+
+### Changed
+
+- Claude reusables (`claude.yml`, `claude-code-review.yml`) now default
+  `runs-on` to the self-hosted pool, with documented required
+  permissions and a one-time validation note for adopters.
 
 ## [1.1.2] - 2026-05-18
 
@@ -223,7 +278,11 @@ README; everything below is the actual content of this repo.
 - Bumped `actions/checkout` from `@v4` to `@v6` across all existing
   workflows for consistency with new files.
 
-[Unreleased]: https://github.com/sproncy/.github-actions/compare/v1.1.2...HEAD
+[Unreleased]: https://github.com/sproncy/.github-actions/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/sproncy/.github-actions/compare/v1.2.2...v1.3.0
+[1.2.2]: https://github.com/sproncy/.github-actions/compare/v1.2.1...v1.2.2
+[1.2.1]: https://github.com/sproncy/.github-actions/compare/v1.2.0...v1.2.1
+[1.2.0]: https://github.com/sproncy/.github-actions/compare/v1.1.2...v1.2.0
 [1.1.2]: https://github.com/sproncy/.github-actions/compare/v1.1.1...v1.1.2
 [1.1.1]: https://github.com/sproncy/.github-actions/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/sproncy/.github-actions/compare/v1.0.0...v1.1.0
