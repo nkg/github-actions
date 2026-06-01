@@ -8,6 +8,23 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ### Added
 
+- `setup-token` — composite action that mints a short-lived GitHub App
+  installation token via `actions/create-github-app-token@v3` and exposes
+  it (plus `installation-id` and `app-slug`) as outputs. The generic
+  token-minting building block for steps that need to act as the App (gh
+  CLI, API calls, pushes that re-trigger workflows). Unlike
+  `setup-deps-reader` it does **not** touch git config — use that one when
+  you need private-deps fetches over git. Scope with `repositories`; empty
+  grants installation-wide access under `owner`.
+
+- `elixir.yml` — `run-deps-audit` input (default `false`) that runs
+  `mix deps.audit` (the `mix_audit` package) to scan `mix.lock` for
+  dependencies with known CVEs. Complements the existing `run-hex-audit`
+  (retired-package check) and `run-sobelow` (Phoenix security scanner)
+  inputs. Requires the consumer to depend on `{:mix_audit, "~> 2.1",
+  only: [:dev, :test]}`. Additive and off by default, so no behaviour
+  change for current callers.
+
 - `stale-run-cleanup.yml` — scheduled reusable workflow that cancels
   **superseded** queued runs (older queued runs for a `(workflow,
   head_branch)` that already has a newer run) so re-pushes/rebases don't

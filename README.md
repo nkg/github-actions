@@ -42,6 +42,7 @@ Sproncy org. Consumed by ~20 sibling repos via `uses:` pinned tags.
 │   ├── setup-go/
 │   ├── setup-mise/
 │   ├── setup-sops/
+│   ├── setup-token/
 │   └── setup-trivy/
 ├── actionlint.yaml          # declares Sproncy custom self-hosted labels
 └── dependabot.yml           # weekly bumps for this repo's own actions
@@ -161,6 +162,7 @@ steps:
 | `setup-trivy`        | Installs Trivy CLI at a pinned version (linux/macOS × amd64/arm64) |
 | `setup-cosign`       | Wraps `sigstore/cosign-installer@v3` so the version is pinned once |
 | `setup-deps-reader`  | Mints a scoped GitHub App token for private-deps access via git    |
+| `setup-token`        | Mints a GitHub App installation token as an output (no git wiring) |
 
 ## Self-hosted runners
 

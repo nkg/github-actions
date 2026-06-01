@@ -50,6 +50,12 @@ on:
         description: "Run `mix hex.audit` to flag retired/insecure deps"
         type: boolean
         default: false
+      run-deps-audit:
+        description: |
+          Run `mix deps.audit` (mix_audit) to scan mix.lock for deps with
+          known CVEs. Requires the consumer to depend on {:mix_audit, ...}.
+        type: boolean
+        default: false
 
 jobs:
   ci:
@@ -105,6 +111,10 @@ jobs:
       - name: hex.audit
         if: inputs.run-hex-audit
         run: mix hex.audit
+
+      - name: deps.audit (mix_audit CVE scan)
+        if: inputs.run-deps-audit
+        run: mix deps.audit
 
       - name: sobelow
         if: inputs.run-sobelow

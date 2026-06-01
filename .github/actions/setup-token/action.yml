@@ -1,0 +1,57 @@
+name: Setup token
+description: |
+  Mint a short-lived GitHub App installation token and expose it as an
+  output for later steps to consume (gh CLI, API calls, pushing commits
+  that re-trigger workflows, posting as the App rather than the run's
+  GITHUB_TOKEN).
+
+  This is the generic token-minting building block. If you specifically
+  need private-deps access over git (uv/hex/go fetches), use
+  setup-deps-reader instead — it mints a token AND wires up the git
+  credential helper. setup-token does NOT touch git config.
+
+  The minted token carries the App installation's permissions. Scope it
+  down to specific repos with the `repositories` input; leave empty to
+  grant access to every repo the installation can reach.
+
+inputs:
+  app-client-id:
+    description: "GitHub App client ID (public on the App's page)"
+    required: true
+  app-private-key:
+    description: "GitHub App private key (pass via secrets)"
+    required: true
+  owner:
+    description: "Repo owner / org (defaults to github.repository_owner)"
+    required: false
+    default: ""
+  repositories:
+    description: "Comma-separated repo names (no owner) to scope the token to. Empty = all repos the installation can reach."
+    required: false
+    default: ""
+
+outputs:
+  token:
+    description: "The minted installation token (short-lived, revoked at job end)"
+    value: ${{ steps.app-token.outputs.token }}
+  installation-id:
+    description: "The App installation ID the token was minted for"
+    value: ${{ steps.app-token.outputs.installation-id }}
+  app-slug:
+    description: "The App's slug (e.g. for setting the commit author to <slug>[bot])"
+    value: ${{ steps.app-token.outputs.app-slug }}
+
+runs:
+  using: composite
+  steps:
+    - name: Mint GitHub App token
+      id: app-token
+      uses: actions/create-github-app-token@v3
+      with:
+        client-id: ${{ inputs.app-client-id }}
+        private-key: ${{ inputs.app-private-key }}
+        owner: ${{ inputs.owner != '' && inputs.owner || github.repository_owner }}
+        # With `owner` set, an empty `repositories` scopes the token to every
+        # repo the installation can reach under that owner (not zero repos),
+        # so passing it through unconditionally is safe.
+        repositories: ${{ inputs.repositories }}
