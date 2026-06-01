@@ -10,8 +10,9 @@ on:
   workflow_call:
     inputs:
       runs-on:
+        description: "Runner label(s) as a JSON array string (parsed with fromJSON). Pass '[\"self-hosted\", \"linux\", \"x64\"]' to use the self-hosted pool."
         type: string
-        default: "ubuntu-latest"
+        default: '["ubuntu-latest"]'
 
       run-bats:
         type: boolean
@@ -46,7 +47,7 @@ on:
 jobs:
   bats:
     if: inputs.run-bats
-    runs-on: ${{ inputs.runs-on }}
+    runs-on: ${{ fromJSON(inputs.runs-on) }}
     permissions:
       contents: read
     steps:
@@ -84,7 +85,7 @@ jobs:
 
   shellcheck:
     if: inputs.run-shellcheck
-    runs-on: ${{ inputs.runs-on }}
+    runs-on: ${{ fromJSON(inputs.runs-on) }}
     permissions:
       contents: read
     steps:

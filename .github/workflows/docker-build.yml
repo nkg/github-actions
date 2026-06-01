@@ -28,9 +28,9 @@ on:
         type: boolean
         default: true
       runs-on:
-        description: "Runner label(s)"
+        description: "Runner label(s) as a JSON array string (parsed with fromJSON). Pass '[\"self-hosted\", \"linux\", \"x64\"]' to use the self-hosted pool."
         type: string
-        default: "ubuntu-latest"
+        default: '["ubuntu-latest"]'
       build-args:
         description: "Newline-separated KEY=VALUE build args"
         type: string
@@ -64,7 +64,7 @@ on:
 
 jobs:
   build:
-    runs-on: ${{ inputs.runs-on }}
+    runs-on: ${{ fromJSON(inputs.runs-on) }}
     permissions:
       contents: read
       packages: write

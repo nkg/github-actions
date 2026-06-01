@@ -50,18 +50,19 @@ Sproncy org. Consumed by ~20 sibling repos via `uses:` pinned tags.
 
 ## Runner strategy
 
-Most reusable workflows default to `ubuntu-latest` and expose a `runs-on`
-input. Consumers route to self-hosted by passing a label list:
+Most reusable workflows default to `'["ubuntu-latest"]'` and expose a
+`runs-on` input (a JSON array string parsed with `fromJSON`). Consumers
+route to self-hosted by passing a label array:
 
 ```yaml
 with:
-  runs-on: '[self-hosted, linux, x64]'
+  runs-on: '["self-hosted", "linux", "x64"]'
 ```
 
 **Exception:** `claude.yml` and `claude-code-review.yml` default to the
-self-hosted pool (`[self-hosted, linux, x64]`) since Claude jobs run on
-private repos. Public/open-source consumers opt out with
-`runs-on: ubuntu-latest`.
+self-hosted pool (`'["self-hosted", "linux", "x64"]'`) since Claude jobs
+run on private repos. Public/open-source consumers opt out with
+`runs-on: '["ubuntu-latest"]'`.
 
 The Sproncy self-hosted fleet uses capability labels (`dind`, `fast`, `slow`
 for AI workloads). `.github/actionlint.yaml` declares them so `actionlint`
@@ -99,6 +100,22 @@ jobs:
 `secrets: inherit` is the quickest path; for security-sensitive workflows
 (`claude`, `claude-code-review`, `sops-audit`) prefer declaring secrets
 explicitly so it's obvious what the workflow can see.
+
+### Choosing a runner
+
+Every reusable takes a `runs-on` input that is a **JSON array string**, parsed
+with `fromJSON`. Pass a quoted JSON array — not a bare label:
+
+```yaml
+    with:
+      runs-on: '["ubuntu-latest"]'              # GitHub-hosted (the default)
+      # runs-on: '["self-hosted", "linux", "x64"]'   # self-hosted pool
+```
+
+A bare string like `runs-on: ubuntu-latest` (or unquoted `'[self-hosted, ...]'`)
+will not parse and the job will fail to schedule. The default is
+`'["ubuntu-latest"]'` for every reusable except the `claude*` bot workflows,
+which default to the self-hosted pool.
 
 ## Consuming a composite action
 
@@ -167,14 +184,16 @@ steps:
 ## Self-hosted runners
 
 Every reusable workflow accepts a `runs-on` input. Most default to
-`ubuntu-latest`; the Claude workflows (`claude.yml`, `claude-code-review.yml`)
-default to `[self-hosted, linux, x64]`. Pass
-`runs-on: '[self-hosted, linux, x64]'` (or a label list like
-`'[self-hosted, linux, x64, dind]'`) to route to your own runner pool, or
-`runs-on: ubuntu-latest` to opt back onto GitHub-hosted runners.
+`'["ubuntu-latest"]'`; the Claude workflows (`claude.yml`,
+`claude-code-review.yml`) default to `'["self-hosted", "linux", "x64"]'`.
+Pass `runs-on: '["self-hosted", "linux", "x64"]'` (or a longer label array
+like `'["self-hosted", "linux", "x64", "dind"]'`) to route to your own
+runner pool, or `runs-on: '["ubuntu-latest"]'` to opt back onto
+GitHub-hosted runners.
 
-The string-typed input means YAML lists must be quoted. Per-job matrix
-splits stay in the caller — this repo's workflows are single-job.
+The input is a JSON array string parsed with `fromJSON`, so it must be
+quoted. Per-job matrix splits stay in the caller — this repo's workflows
+are single-job.
 
 ## Updating actions
 
