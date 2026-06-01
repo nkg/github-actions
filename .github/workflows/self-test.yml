@@ -10,7 +10,7 @@ jobs:
   lint:
     uses: ./.github/workflows/lint-workflows.yml
     with:
-      runs-on: '[self-hosted, linux, x64]'
+      runs-on: '["self-hosted", "linux", "x64"]'
       yamllint-paths: ".github/ .yamllint.yml"
 
   composite-actions-syntax:
