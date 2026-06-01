@@ -43,10 +43,15 @@ on:
 jobs:
   review:
     # Author/contributor filter is opt-in. By default every PR gets reviewed.
+    # Dependabot PRs are always skipped: they run in a restricted context with
+    # no access to Actions secrets, so CLAUDE_CODE_OAUTH_TOKEN arrives empty and
+    # the action errors out — and we don't want to spend Claude review on bumps.
     if: |
-      (inputs.filter-authors == '' && !inputs.filter-first-time-only) ||
-      contains(inputs.filter-authors, github.event.pull_request.user.login) ||
-      (inputs.filter-first-time-only && (github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR' || github.event.pull_request.author_association == 'FIRST_TIMER'))
+      github.event.pull_request.user.login != 'dependabot[bot]' && (
+        (inputs.filter-authors == '' && !inputs.filter-first-time-only) ||
+        contains(inputs.filter-authors, github.event.pull_request.user.login) ||
+        (inputs.filter-first-time-only && (github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR' || github.event.pull_request.author_association == 'FIRST_TIMER'))
+      )
     runs-on: ${{ fromJSON(inputs.runs-on) }}
     timeout-minutes: ${{ inputs.timeout-minutes }}
     # `claude-code-action` posts review comments back on the PR, so it
