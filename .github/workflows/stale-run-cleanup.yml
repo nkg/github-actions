@@ -82,6 +82,9 @@ jobs:
           fi
 
           echo "Superseded queued runs:"
+          # Word-splitting is intentional — $to_cancel is a newline-separated
+          # list of run IDs and we want one printf arg (one line) per id.
+          # shellcheck disable=SC2086
           printf '  %s\n' $to_cancel
 
           if [ "$DRY_RUN" = "true" ]; then
