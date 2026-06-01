@@ -8,6 +8,15 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ### Added
 
+- `setup-token` — composite action that mints a short-lived GitHub App
+  installation token via `actions/create-github-app-token@v3` and exposes
+  it (plus `installation-id` and `app-slug`) as outputs. The generic
+  token-minting building block for steps that need to act as the App (gh
+  CLI, API calls, pushes that re-trigger workflows). Unlike
+  `setup-deps-reader` it does **not** touch git config — use that one when
+  you need private-deps fetches over git. Scope with `repositories`; empty
+  grants installation-wide access under `owner`.
+
 - `elixir.yml` — `run-deps-audit` input (default `false`) that runs
   `mix deps.audit` (the `mix_audit` package) to scan `mix.lock` for
   dependencies with known CVEs. Complements the existing `run-hex-audit`
