@@ -5,16 +5,22 @@ on:
     branches: [main]
   pull_request:
 
+# This repo is PUBLIC, so its own CI runs on GitHub-hosted runners, not the
+# self-hosted pool: `pull_request` fires for fork PRs, and running untrusted
+# PR code on self-hosted runners would let anyone execute on our infra
+# (GitHub's documented self-hosted-on-public-repo risk). ubuntu-latest is
+# also free + unlimited for public repos. Consumers still default to / can
+# pass the self-hosted pool from their own (private) repos.
 jobs:
   # Dogfood: lint this repo's workflows with our own reusable.
   lint:
     uses: ./.github/workflows/lint-workflows.yml
     with:
-      runs-on: '["self-hosted", "linux", "x64"]'
+      runs-on: '["ubuntu-latest"]'
       yamllint-paths: ".github/ .yamllint.yml"
 
   composite-actions-syntax:
-    runs-on: [self-hosted, linux, x64]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
