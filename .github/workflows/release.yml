@@ -7,7 +7,10 @@ on:
 
 jobs:
   move-major-tag:
-    runs-on: [self-hosted, linux, x64]
+    # Public repo → GitHub-hosted (free, no reason to use the self-hosted
+    # pool). Tag-push only, so not a fork-PR risk, but kept consistent with
+    # self-test and off the self-hosted fleet.
+    runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
