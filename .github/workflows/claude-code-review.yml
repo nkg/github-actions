@@ -75,6 +75,11 @@ jobs:
           fetch-depth: 1
 
       - name: Run Claude Code Review
+        # Advisory check: a crash in the upstream action (e.g. the Claude
+        # Code 2.1.98 "directory mismatch for tsconfig.json" SDK bug,
+        # anthropics/claude-code-action#1205) must never block a PR. The
+        # review posts its findings as comments; the job status is not a gate.
+        continue-on-error: true
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
