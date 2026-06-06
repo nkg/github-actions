@@ -6,6 +6,19 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-06-06
+
+### Fixed
+
+- `claude-code-review.yml` now defaults `claude_args` to Anthropic's
+  documented PR-review tool set
+  (`--allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"`).
+  Previously `claude_args` was empty, so the inline-comment MCP tool was
+  denied — the review ran (and billed) but posted nothing ("No buffered
+  inline comments", `permission_denials_count` > 0). Callers passing their
+  own `claude-args` still override it. This is the actual reason reviews
+  weren't appearing; unrelated to the upstream tsconfig crash (#1205).
+
 ## [2.1.0] - 2026-06-06
 
 ### Changed
