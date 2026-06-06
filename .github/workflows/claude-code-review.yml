@@ -24,11 +24,13 @@ on:
         type: boolean
         default: false
       plugin-marketplace:
+        description: "Optional plugin marketplace. Empty by default — the code-review plugin is broken on current Claude Code (spawns a non-existent claude-haiku agent), so we use a direct review prompt instead."
         type: string
-        default: "https://github.com/anthropics/claude-code.git"
+        default: ""
       plugins:
+        description: "Optional plugins. Empty by default (see plugin-marketplace)."
         type: string
-        default: "code-review@claude-code-plugins"
+        default: ""
       prompt:
         description: "Override the default code-review prompt"
         type: string
@@ -85,7 +87,11 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           plugin_marketplaces: ${{ inputs.plugin-marketplace }}
           plugins: ${{ inputs.plugins }}
-          prompt: ${{ inputs.prompt != '' && inputs.prompt || format('/code-review:code-review {0}/pull/{1}', github.repository, github.event.pull_request.number) }}
+          # Direct review prompt (NOT the /code-review plugin, which is broken
+          # on Claude Code 2.1.x — it spawns a non-existent claude-haiku agent
+          # and posts nothing). Single line so it survives format(); a caller
+          # passing `prompt` overrides it.
+          prompt: ${{ inputs.prompt != '' && inputs.prompt || format('Review pull request {0}#{1} for bugs, security issues, performance problems, and missing test coverage. Follow the repo''s CLAUDE.md conventions if present. Post each specific problem as an inline comment with the mcp__github_inline_comment__create_inline_comment tool, and leave one short top-level summary via `gh pr comment`. Only flag real issues; if there are none, say so briefly.', github.repository, github.event.pull_request.number) }}
           # Without an explicit --allowedTools the inline-comment MCP tool is
           # denied, so Claude runs but posts nothing ("No buffered inline
           # comments" + permission_denials). Default to Anthropic's documented

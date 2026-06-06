@@ -6,6 +6,21 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-06-06
+
+### Fixed
+
+- `claude-code-review.yml` no longer uses the `code-review@claude-code-plugins`
+  plugin by default — it is **broken on Claude Code 2.1.x**: the plugin spawns
+  a `claude-haiku-4-5-20251001` subagent that doesn't exist (`Error: Agent type
+  '...' not found`), so the review ran and billed but produced **zero comments**
+  ("No buffered inline comments"). The default now uses a direct review prompt
+  plus the inline-comment tool (verified posting 3 inline comments + a summary
+  on a test PR). `plugins` / `plugin-marketplace` inputs default to empty;
+  callers can still opt back into a plugin or pass a custom `prompt`. This was
+  the real "Claude isn't reviewing" cause — combined with the v2.2.0
+  `allowedTools` default, reviews now post.
+
 ## [2.2.0] - 2026-06-06
 
 ### Fixed
