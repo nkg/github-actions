@@ -6,6 +6,20 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-06-06
+
+### Changed
+
+- `claude-code-review.yml` now marks the upstream `claude-code-action`
+  step `continue-on-error: true`, making the automated review an
+  **advisory** check that can never block a PR. This shields consumers
+  from the upstream Claude Code 2.1.98 SDK crash ("directory mismatch
+  for tsconfig.json", anthropics/claude-code-action#1205) — non-fatal
+  log noise on `pull_request` triggers, but it can turn fatal on large
+  checkouts. Findings are still posted as PR comments. The `@claude` bot
+  (`claude.yml`) is intentionally left blocking so failed invocations
+  stay visible.
+
 ## [2.0.0] - 2026-06-01
 
 ### Changed
