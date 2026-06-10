@@ -6,6 +6,17 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ## [Unreleased]
 
+### Added
+
+- `playwright-integration.yml` — new reusable that runs integration tests
+  inside the official `mcr.microsoft.com/playwright` image (Chromium +
+  deps preinstalled), so jobs drive a real headless browser without
+  downloading browser binaries each run. Handles the image's quirks
+  (no bun, no `unzip`) and optional private-registry npm auth via
+  `npm-scope` + the `NODE_AUTH_TOKEN` secret. Generalised from
+  `HordiaLabs/fetcher-playwright`'s bespoke integration job; intended for
+  the browser-fetcher fleet (`fetcher-playwright`, `fetcher-camoufox`, …).
+
 ## [2.4.1] - 2026-06-10
 
 ### Changed

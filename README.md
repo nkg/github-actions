@@ -27,6 +27,7 @@ Sproncy org. Consumed by ~20 sibling repos via `uses:` pinned tags.
 │   ├── molecule.yml
 │   ├── node-bun.yml
 │   ├── opentofu.yml
+│   ├── playwright-integration.yml
 │   ├── python-uv.yml
 │   ├── release.yml          # auto-moves the floating vMAJOR tag
 │   ├── scrapy.yml
@@ -136,6 +137,7 @@ steps:
 | `fastapi.yml`         | python-uv + import smoke + OpenAPI export/diff                   |
 | `scrapy.yml`          | python-uv + `scrapy list` + `scrapy check` (+ optional smoke)    |
 | `node-bun.yml`        | Bun-based Node/TS: install, lint, typecheck, test, build         |
+| `playwright-integration.yml`| Integration tests inside the Playwright image (real Chromium; bun + private-registry aware) |
 | `turbo.yml`           | Bun + Turborepo monorepo (cache, tasks, optional filters)        |
 | `elixir.yml`          | Mix: deps, format check, credo, test; opt-in dialyzer/sobelow/audits |
 | `go.yml`              | Go: gofmt, vet, optional staticcheck/govulncheck, test+coverage  |
