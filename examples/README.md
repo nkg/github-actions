@@ -31,6 +31,29 @@ jobs:
       working-directory: apps/web
 ```
 
+## Playwright integration tests
+
+Drives a real headless Chromium inside the Playwright runtime image —
+no browser download per run. Pin `playwright-image` to the same tag as
+your `package.json` playwright version + Dockerfile base. Pass an
+`npm-scope` (and `NODE_AUTH_TOKEN`) when the integration deps live in a
+private org registry:
+
+```yaml
+name: Integration
+on: [push, pull_request]
+jobs:
+  integration:
+    uses: nkg/github-actions/.github/workflows/playwright-integration.yml@v2
+    with:
+      playwright-image: "mcr.microsoft.com/playwright:v1.60.0-noble"
+      npm-scope: "@hordialabs"
+      bun-version: "1.3.9"           # pin to your mise.toml
+      test-command: "npm run test:integration"
+    secrets:
+      NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
+
 ## Expo / React Native
 
 ```yaml
@@ -247,8 +270,8 @@ jobs:
     uses: nkg/github-actions/.github/workflows/container-security.yml@v2
     with:
       image-list: |
-        ghcr.io/nkg/pi:latest
-        ghcr.io/nkg/eb:latest
+        ghcr.io/nkg/api:latest
+        ghcr.io/nkg/web:latest
 ```
 
 ### Trivy repo scan (filesystem + IaC)
@@ -693,7 +716,7 @@ jobs:
       contents: read
     steps:
       - uses: nkg/github-actions/.github/actions/setup-cosign@v2
-      - run: cosign sign --yes ghcr.io/sproncy/api@sha256:...
+      - run: cosign sign --yes ghcr.io/nkg/api@sha256:...
 ```
 
 ### mise (pinned dev toolchain) for a custom job
@@ -703,7 +726,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: nkg/github-actions/.github/actions/setup-mise@v2   # runs `mise install` from .mise.toml
       - run: mise run build
 ```
@@ -715,7 +738,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: nkg/github-actions/.github/actions/setup-go@v2
         with:
           go-version: "1.23"
@@ -739,7 +762,7 @@ jobs:
           app-client-id: ${{ vars.APP_CLIENT_ID }}
           app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
           permission-contents: write          # omit all permission-* for the installation's full set
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           token: ${{ steps.token.outputs.token }}
       - run: git push

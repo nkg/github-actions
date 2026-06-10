@@ -1,0 +1,107 @@
+name: Playwright integration
+
+# Runs integration tests inside the official Playwright runtime image
+# (Chromium + system deps already installed), so a job can drive a real
+# headless browser without downloading ~300MB of browser binaries per run.
+#
+# Generalised from HordiaLabs/fetcher-playwright's bespoke `integration`
+# job. Intended for the Tier-2/Tier-3 browser fetchers (fetcher-playwright,
+# fetcher-camoufox, ...) and anything else that needs a real Chromium in CI.
+#
+# Notes:
+#   - The Playwright image ships Node but NOT bun, and not `unzip` (which
+#     oven-sh/setup-bun needs to unpack its download), so this workflow
+#     installs unzip then bun when run-bun is true.
+#   - When npm-scope is set, setup-node configures an auth'd registry so
+#     `npm install` can pull private org packages. The token comes from the
+#     NODE_AUTH_TOKEN secret (defaults to GITHUB_TOKEN).
+#   - Pin `playwright-image` to the SAME tag as the consumer's package.json
+#     playwright version + Dockerfile base, so integration runs against the
+#     same browser build that ships.
+
+on:
+  workflow_call:
+    inputs:
+      runs-on:
+        description: "Runner label(s) as a JSON array string (parsed with fromJSON). Pass '[\"self-hosted\", \"linux\", \"x64\"]' to use the self-hosted pool."
+        type: string
+        default: '["ubuntu-latest"]'
+      playwright-image:
+        description: "Playwright runtime image (must match the consumer's pinned playwright version)."
+        type: string
+        default: "mcr.microsoft.com/playwright:v1.60.0-noble"
+      node-version:
+        description: "Node version to set up for npm registry auth."
+        type: string
+        default: "25"
+      npm-registry-url:
+        description: "Registry URL for setup-node (enables auth when npm-scope is set)."
+        type: string
+        default: "https://npm.pkg.github.com"
+      npm-scope:
+        description: "npm scope to bind to the registry, e.g. '@hordialabs'. Empty = skip scoped-registry auth (public deps only)."
+        type: string
+        default: ""
+      run-bun:
+        description: "Install bun (the Playwright image has no bun). Set false if the consumer's test command uses npm/node only."
+        type: boolean
+        default: true
+      bun-version:
+        description: "Bun version to install (pin to the consumer's mise.toml to keep unit + integration jobs aligned)."
+        type: string
+        default: "latest"
+      install-command:
+        description: "Dependency install command."
+        type: string
+        default: "npm install"
+      test-command:
+        description: "Integration test command."
+        type: string
+        default: "npm run test:integration"
+      timeout-minutes:
+        type: number
+        default: 20
+    secrets:
+      NODE_AUTH_TOKEN:
+        description: "Token for the private npm registry. Defaults to GITHUB_TOKEN when unset."
+        required: false
+
+jobs:
+  integration:
+    runs-on: ${{ fromJSON(inputs.runs-on) }}
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    container: ${{ inputs.playwright-image }}
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Node (registry auth)
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ inputs.node-version }}
+          # registry-url + scope only take effect (write an auth'd .npmrc)
+          # when scope is non-empty; harmless otherwise.
+          registry-url: ${{ inputs.npm-registry-url }}
+          scope: ${{ inputs.npm-scope }}
+
+      # oven-sh/setup-bun downloads a zip; the Playwright image ships without
+      # unzip. Install it first so the bun setup step can unpack.
+      - name: Install unzip (required by setup-bun)
+        if: inputs.run-bun
+        run: apt-get update && apt-get install -y --no-install-recommends unzip
+
+      - name: Set up bun
+        if: inputs.run-bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ inputs.bun-version }}
+
+      - name: Install dependencies
+        run: ${{ inputs.install-command }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Integration tests
+        run: ${{ inputs.test-command }}

@@ -6,6 +6,33 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ## [Unreleased]
 
+### Added
+
+- `playwright-integration.yml` — new reusable that runs integration tests
+  inside the official `mcr.microsoft.com/playwright` image (Chromium +
+  deps preinstalled), so jobs drive a real headless browser without
+  downloading browser binaries each run. Handles the image's quirks
+  (no bun, no `unzip`) and optional private-registry npm auth via
+  `npm-scope` + the `NODE_AUTH_TOKEN` secret. Generalised from
+  `HordiaLabs/fetcher-playwright`'s bespoke integration job; intended for
+  the browser-fetcher fleet (`fetcher-playwright`, `fetcher-camoufox`, …).
+
+## [2.4.1] - 2026-06-10
+
+### Changed
+
+- Bumped pinned third-party action versions used by the composites and
+  reusables: `actions/setup-go@v6` (in `setup-go`), `actions/cache@v5`
+  (in `setup-mise`), and `pozil/auto-assign-issue@v4` (in `auto-assign`)
+  (#31).
+
+### Documentation
+
+- Synced README/examples to the `nkg/github-actions` owner and `@v2`
+  pins, corrected the `elixir.yml` description and added the missing
+  `stale-run-cleanup.yml` row, and added examples for every reusable +
+  composite action (#30).
+
 ## [2.4.0] - 2026-06-10
 
 ### Added
@@ -342,7 +369,8 @@ README; everything below is the actual content of this repo.
 - Bumped `actions/checkout` from `@v4` to `@v6` across all existing
   workflows for consistency with new files.
 
-[Unreleased]: https://github.com/nkg/github-actions/compare/v2.4.0...HEAD
+[Unreleased]: https://github.com/nkg/github-actions/compare/v2.4.1...HEAD
+[2.4.1]: https://github.com/nkg/github-actions/compare/v2.4.0...v2.4.1
 [2.4.0]: https://github.com/nkg/github-actions/compare/v2.3.0...v2.4.0
 [2.3.0]: https://github.com/nkg/github-actions/compare/v2.2.0...v2.3.0
 [2.2.0]: https://github.com/nkg/github-actions/compare/v2.1.0...v2.2.0
