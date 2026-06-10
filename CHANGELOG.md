@@ -6,6 +6,17 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ## [Unreleased]
 
+### Fixed
+
+- `claude.yml` — the on-demand `@claude` bot reusable declared
+  `pull-requests: read` and `issues: read`, so the bot's `GITHUB_TOKEN`
+  could authenticate but every GitHub API write (the comment/review it
+  exists to post) silently 403'd. Bumped both to `write`, matching
+  `claude-code-review.yml`. Because a reusable workflow's called-job
+  permissions are authoritative (a caller granting `write` is still capped
+  to what the reusable declares), this could only be fixed here, not in
+  consumer stubs.
+
 ## [2.5.0] - 2026-06-10
 
 ### Added

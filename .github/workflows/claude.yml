@@ -47,8 +47,13 @@ jobs:
     timeout-minutes: ${{ inputs.timeout-minutes }}
     permissions:
       contents: read
-      pull-requests: read
-      issues: read
+      # write (not read) so the bot's GITHUB_TOKEN can post the comments and
+      # reviews it exists to create. In a reusable workflow the called job's
+      # permissions are authoritative — a caller granting write is capped to
+      # whatever is declared here, so read here silently 403s every write.
+      # Matches claude-code-review.yml.
+      pull-requests: write
+      issues: write
       id-token: write
       actions: read
     steps:
