@@ -59,6 +59,24 @@ on:
         description: "Extra args for bandit (default scans the working-directory recursively)"
         type: string
         default: "-r ."
+      deps-reader-client-id:
+        description: |
+          GitHub App client ID for private-dep access. When set, a scoped
+          installation token is minted (via setup-deps-reader) and git's
+          credential helper is wired before `uv sync`, so private git deps
+          (e.g. a `[tool.uv.sources]` entry pointing at a private repo)
+          resolve over HTTPS. Pair with deps-reader-repositories and the
+          DEPS_READER_PRIVATE_KEY secret. Empty = no private-deps step.
+        type: string
+        default: ""
+      deps-reader-repositories:
+        description: "Comma-separated repo names (no owner) the token is scoped to. Required when deps-reader-client-id is set."
+        type: string
+        default: ""
+    secrets:
+      DEPS_READER_PRIVATE_KEY:
+        description: "Private key for the deps-reader GitHub App (required when deps-reader-client-id is set)"
+        required: false
 
 jobs:
   ci:
@@ -68,6 +86,19 @@ jobs:
         working-directory: ${{ inputs.working-directory }}
     steps:
       - uses: actions/checkout@v6
+
+      # Private-deps access (opt-in). Referenced by full path + floating major
+      # tag because a relative `./.github/actions/...` inside a reusable would
+      # resolve against the *consumer's* checkout, not this repo. The composite
+      # configures git's global credential helper, so `uv sync` (which shells
+      # out to git for git deps) can reach private repos regardless of checkout.
+      - name: Configure private-deps access
+        if: inputs.deps-reader-client-id != ''
+        uses: nkg/github-actions/.github/actions/setup-deps-reader@v2
+        with:
+          app-client-id: ${{ inputs.deps-reader-client-id }}
+          app-private-key: ${{ secrets.DEPS_READER_PRIVATE_KEY }}
+          repositories: ${{ inputs.deps-reader-repositories }}
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
