@@ -140,13 +140,13 @@ steps:
 | `playwright-integration.yml`| Integration tests inside the Playwright image (real Chromium; bun + private-registry aware) |
 | `turbo.yml`           | Bun + Turborepo monorepo (cache, tasks, optional filters)        |
 | `elixir.yml`          | Mix: deps, format check, credo, test; opt-in dialyzer/sobelow/audits |
-| `go.yml`              | Go: gofmt, vet, optional staticcheck/govulncheck/fuzz, test+coverage, optional private-deps |
+| `go.yml`              | Go: gofmt, vet, optional golangci-lint/staticcheck/govulncheck/fuzz, test+coverage, optional Postgres + private-deps |
 | `expo.yml`            | Expo/RN: install, lint, typecheck, test, optional EAS build (bun default; npm/yarn/pnpm/mise) |
 | `opentofu.yml`        | OpenTofu: fmt, init, validate, plan (apply gated by env)         |
 | `ansible.yml`         | ansible-lint + syntax check                                      |
 | `molecule.yml`        | Matrix `molecule test` across Ansible roles                      |
 | `toml-lint.yml`       | taplo fmt --check + Python tomllib parse over all `.toml` files  |
-| `docker-build.yml`    | buildx multi-arch build + push to GHCR                           |
+| `docker-build.yml`    | buildx multi-arch build + push to GHCR, optional build-secrets + private-deps |
 | `compose-validate.yml`| `docker compose config` across profiles (DinD-safe pattern)      |
 | `komodo-deploy.yml`   | POST to Komodo's /api/execute; optional poll-until-complete      |
 
@@ -168,7 +168,7 @@ steps:
 | `claude.yml`              | `@claude` on-demand bot (issues, PRs, review comments)         |
 | `claude-code-review.yml`  | Automated Claude code review on PR open/sync                   |
 | `auto-assign.yml`         | Auto-assign new issues and PRs to a user list                  |
-| `dependabot-auto-merge.yml`| Auto-merges Dependabot PRs (major bumps gated by default)     |
+| `dependabot-auto-merge.yml`| Auto-merges Dependabot PRs (major bumps gated; native auto-merge or Free-plan `workflow_run` path) |
 | `auto-revert-on-main-failure.yml`| Opens a revert PR when main CI fails (free-plan branch-protection workaround) |
 | `stale-run-cleanup.yml`   | Cancels superseded queued runs on a shared runner pool (min-age guard, dry-run) |
 

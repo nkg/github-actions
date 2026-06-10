@@ -151,6 +151,27 @@ jobs:
       push: ${{ github.event_name != 'pull_request' }}
 ```
 
+Build a Dockerfile that pulls **private modules**. The workflow mints a scoped
+deps-reader token and injects it as the `github_token` BuildKit secret, so the
+build can fetch private repos without the caller minting the token itself.
+Consume it in the Dockerfile with
+`RUN --mount=type=secret,id=github_token …`:
+
+```yaml
+jobs:
+  image:
+    uses: nkg/github-actions/.github/workflows/docker-build.yml@v2
+    with:
+      image-name: ${{ github.repository }}
+      push: ${{ github.event_name != 'pull_request' }}
+      deps-reader-client-id: ${{ vars.DEPS_READER_CLIENT_ID }}
+      deps-reader-repositories: scraper-core
+      # build-secrets: |          # merged with the minted github_token
+      #   npm_token=${{ secrets.NPM_TOKEN }}
+    secrets:
+      DEPS_READER_PRIVATE_KEY: ${{ secrets.DEPS_READER_PRIVATE_KEY }}
+```
+
 ## Ansible
 
 ```yaml
@@ -192,14 +213,54 @@ jobs:
     uses: nkg/github-actions/.github/workflows/go.yml@v2
     with:
       go-version: "1.26"
+      # goprivate is required for private modules — it makes `go` resolve them
+      # over git (where the minted token applies) instead of the public proxy.
+      goprivate: github.com/HordiaLabs/*
       deps-reader-client-id: ${{ vars.DEPS_READER_CLIENT_ID }}
       deps-reader-repositories: scraper-core
       run-fuzz: true
       fuzz-target: FuzzExtract
       fuzz-time: 30s
       fuzz-package: ./internal/...
+      # govulncheck-soft: true   # report CVEs without failing the build
     secrets:
       DEPS_READER_PRIVATE_KEY: ${{ secrets.DEPS_READER_PRIVATE_KEY }}
+```
+
+Go with `golangci-lint` and `gowork-off`. Pin `golangci-lint-version` to the
+same version as your local mise/`.tool-versions` entry so CI and dev agree.
+`gowork-off: true` exports `GOWORK=off` for every step, so a parent `go.work`
+`replace` can't mask a stale `go.mod` pin — the module resolves exactly as a
+fresh single-module checkout would:
+
+```yaml
+name: CI
+on: [push, pull_request]
+jobs:
+  go:
+    uses: nkg/github-actions/.github/workflows/go.yml@v2
+    with:
+      go-version: "1.26"
+      run-golangci-lint: true
+      golangci-lint-version: "2.11.4"   # match your .tool-versions
+      gowork-off: true
+```
+
+Go with a throwaway Postgres for DB-gated integration tests. The workflow
+starts the container before the test step and exports `DATABASE_URL` into the
+job env, so tests that skip when `DATABASE_URL` is unset actually run:
+
+```yaml
+name: CI
+on: [push, pull_request]
+jobs:
+  go:
+    uses: nkg/github-actions/.github/workflows/go.yml@v2
+    with:
+      go-version: "1.26"
+      postgres-enabled: true
+      # postgres-image: "postgres:16-alpine"   # default
+      # postgres-user / postgres-password / postgres-db also configurable
 ```
 
 ## Scrapy
@@ -494,6 +555,10 @@ jobs:
 
 Pairs with a `dependabot.yml` config — merges patch/minor bumps automatically once required checks pass. Major bumps are gated.
 
+There are two trigger styles; pick by plan.
+
+**Team / Enterprise (native auto-merge):** the default. Triggers on `pull_request` and uses `gh pr merge --auto`, which queues the merge until required checks pass.
+
 ```yaml
 name: Dependabot auto-merge
 on:
@@ -501,11 +566,33 @@ on:
 jobs:
   merge:
     uses: nkg/github-actions/.github/workflows/dependabot-auto-merge.yml@v2
-    # Defaults: squash strategy, skip major bumps.
+    # Defaults: squash strategy, skip major bumps, use-auto-merge: true.
     # with:
     #   merge-strategy: rebase
     #   auto-merge-major: true
 ```
+
+**Free plan (`workflow_run` immediate-merge):** GitHub restricts native auto-merge to Team/Enterprise on **private** repos, so `--auto` can't work there. Instead, trigger *after* your CI workflow completes and set `use-auto-merge: false` — the workflow finds the Dependabot PR for that run and merges it immediately (CI already passed). Replace `CI` with the exact `name:` of your CI workflow.
+
+```yaml
+name: Dependabot auto-merge
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+jobs:
+  merge:
+    # workflow_run runs with the repo default token; if that's read-only
+    # (the safe org default), grant write here so the reusable can merge.
+    permissions:
+      contents: write
+      pull-requests: write
+    uses: nkg/github-actions/.github/workflows/dependabot-auto-merge.yml@v2
+    with:
+      use-auto-merge: false
+```
+
+The `if:` guard (Dependabot actor + successful run) lives inside the reusable, so the stub stays this small. Major-bump gating on this path is best-effort from the PR title: **grouped** updates can't be classified from the title and are treated as non-major. Keep majors manual where that matters, or set `auto-merge-major: true` to merge them too.
 
 ### Auto-revert when main CI fails
 
