@@ -508,6 +508,12 @@ jobs:
       failed-run-url: ${{ github.event.workflow_run.html_url }}
 ```
 
+**Client-side complement:** `auto-revert` reacts *after* bad code lands. Pair
+it with a `pre-push` git hook that runs the same checks CI runs, so broken
+code never reaches `origin` in the first place. See
+[`pre-push-hook.md`](pre-push-hook.md) for the portable pattern (lefthook +
+per-stack command table).
+
 ### Stale run cleanup
 
 Cancels **superseded** queued runs — older queued runs for a `(workflow, branch)` that already has a newer run — so re-pushes/rebases don't stack up on a shared (self-hosted) runner pool. A `concurrency:` block on each workflow is the first line of defence (cancels at push time); this scheduled sweep is the safety net for runs that slipped through (e.g. created before the block existed, or across different workflows).
