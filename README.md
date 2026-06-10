@@ -179,7 +179,7 @@ steps:
 | `setup-trivy`        | Installs Trivy CLI at a pinned version (linux/macOS × amd64/arm64) |
 | `setup-cosign`       | Wraps `sigstore/cosign-installer@v3` so the version is pinned once |
 | `setup-deps-reader`  | Mints a scoped GitHub App token for private-deps access via git    |
-| `setup-token`        | Mints a GitHub App installation token as an output (no git wiring) |
+| `setup-token`        | Mints a GitHub App installation token as an output (no git wiring); optional `permission-*` inputs scope it to least privilege |
 
 ## Self-hosted runners
 
