@@ -121,7 +121,7 @@ which default to the self-hosted pool.
 
 ```yaml
 steps:
-  - uses: actions/checkout@v4
+  - uses: actions/checkout@v6
   - uses: sproncy/.github-actions/.github/actions/setup-mise@v1
   - run: mise run build
 ```
@@ -175,7 +175,7 @@ steps:
 |----------------------|--------------------------------------------------------------------|
 | `setup-mise`         | Installs mise and runs `mise install` (caches the tool dir)        |
 | `setup-sops`         | Installs sops + age (cross-arch), optionally decrypts a file       |
-| `setup-go`           | Thin wrapper over `actions/setup-go@v5` for org-wide version pin   |
+| `setup-go`           | Thin wrapper over `actions/setup-go@v6` for org-wide version pin   |
 | `setup-trivy`        | Installs Trivy CLI at a pinned version (linux/macOS × amd64/arm64) |
 | `setup-cosign`       | Wraps `sigstore/cosign-installer@v3` so the version is pinned once |
 | `setup-deps-reader`  | Mints a scoped GitHub App token for private-deps access via git    |

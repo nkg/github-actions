@@ -1,7 +1,7 @@
 # Consumer examples
 
 Drop these into `.github/workflows/*.yml` of a consumer repo. Replace
-`sproncy/.github-actions@v1` with a SHA when you need bit-for-bit pinning.
+`nkg/github-actions@v2` with a SHA when you need bit-for-bit pinning.
 
 ## Python (uv)
 
@@ -13,7 +13,7 @@ on:
   pull_request:
 jobs:
   test:
-    uses: sproncy/.github-actions/.github/workflows/python-uv.yml@v1
+    uses: nkg/github-actions/.github/workflows/python-uv.yml@v2
     with:
       python-version: "3.12"
     secrets: inherit
@@ -26,7 +26,7 @@ name: CI
 on: [push, pull_request]
 jobs:
   web:
-    uses: sproncy/.github-actions/.github/workflows/node-bun.yml@v1
+    uses: nkg/github-actions/.github/workflows/node-bun.yml@v2
     with:
       working-directory: apps/web
 ```
@@ -42,7 +42,7 @@ jobs:
       matrix:
         otp: ["26", "27"]
         elixir: ["1.16", "1.17"]
-    uses: sproncy/.github-actions/.github/workflows/elixir.yml@v1
+    uses: nkg/github-actions/.github/workflows/elixir.yml@v2
     with:
       otp-version: ${{ matrix.otp }}
       elixir-version: ${{ matrix.elixir }}
@@ -60,7 +60,7 @@ on:
     paths: ["stacks/cloudflare/**"]
 jobs:
   cloudflare:
-    uses: sproncy/.github-actions/.github/workflows/opentofu.yml@v1
+    uses: nkg/github-actions/.github/workflows/opentofu.yml@v2
     with:
       working-directory: stacks/cloudflare
       tofu-version: "1.8.0"
@@ -77,7 +77,7 @@ on:
   pull_request:
 jobs:
   image:
-    uses: sproncy/.github-actions/.github/workflows/docker-build.yml@v1
+    uses: nkg/github-actions/.github/workflows/docker-build.yml@v2
     with:
       image-name: ${{ github.repository }}
       platforms: linux/amd64,linux/arm64
@@ -91,7 +91,7 @@ name: CI
 on: [push, pull_request]
 jobs:
   ansible:
-    uses: sproncy/.github-actions/.github/workflows/ansible.yml@v1
+    uses: nkg/github-actions/.github/workflows/ansible.yml@v2
     with:
       working-directory: ansible
       playbooks: |
@@ -107,7 +107,7 @@ name: CI
 on: [push, pull_request]
 jobs:
   go:
-    uses: sproncy/.github-actions/.github/workflows/go.yml@v1
+    uses: nkg/github-actions/.github/workflows/go.yml@v2
     with:
       go-version: "1.23"
       run-staticcheck: true
@@ -121,7 +121,7 @@ name: CI
 on: [push, pull_request]
 jobs:
   scrapy:
-    uses: sproncy/.github-actions/.github/workflows/scrapy.yml@v1
+    uses: nkg/github-actions/.github/workflows/scrapy.yml@v2
     with:
       run-spider-smoke: true
       spider-name: products
@@ -134,7 +134,7 @@ name: CI
 on: [push, pull_request]
 jobs:
   api:
-    uses: sproncy/.github-actions/.github/workflows/fastapi.yml@v1
+    uses: nkg/github-actions/.github/workflows/fastapi.yml@v2
     with:
       app-module: myapi.main:app
       run-openapi-diff: true
@@ -148,7 +148,7 @@ name: Validate compose
 on: [push, pull_request]
 jobs:
   validate:
-    uses: sproncy/.github-actions/.github/workflows/compose-validate.yml@v1
+    uses: nkg/github-actions/.github/workflows/compose-validate.yml@v2
     with:
       compose-file: docker-compose.yml
       profiles: |
@@ -169,7 +169,7 @@ on:
     branches: [main]
 jobs:
   komodo:
-    uses: sproncy/.github-actions/.github/workflows/komodo-deploy.yml@v1
+    uses: nkg/github-actions/.github/workflows/komodo-deploy.yml@v2
     with:
       komodo-url: https://komodo.example.com
       operation: DeployStack
@@ -196,7 +196,7 @@ on:
     - cron: '0 6 * * 1'   # weekly full-history sweep
 jobs:
   gitleaks:
-    uses: sproncy/.github-actions/.github/workflows/secret-scan.yml@v1
+    uses: nkg/github-actions/.github/workflows/secret-scan.yml@v2
     with:
       runs-on: '["self-hosted", "linux", "x64"]'
 ```
@@ -215,7 +215,7 @@ on:
     - cron: '0 6 * * 1'
 jobs:
   trivy:
-    uses: sproncy/.github-actions/.github/workflows/container-security.yml@v1
+    uses: nkg/github-actions/.github/workflows/container-security.yml@v2
     with:
       compose-file: docker-compose.yml
       runs-on: '["self-hosted", "linux", "x64"]'
@@ -226,11 +226,11 @@ Or scan an explicit list:
 ```yaml
 jobs:
   trivy:
-    uses: sproncy/.github-actions/.github/workflows/container-security.yml@v1
+    uses: nkg/github-actions/.github/workflows/container-security.yml@v2
     with:
       image-list: |
-        ghcr.io/sproncy/api:latest
-        ghcr.io/sproncy/web:latest
+        ghcr.io/nkg/pi:latest
+        ghcr.io/nkg/eb:latest
 ```
 
 ### Trivy repo scan (filesystem + IaC)
@@ -247,11 +247,11 @@ on:
     - cron: '0 6 * * 1'
 jobs:
   fs:
-    uses: sproncy/.github-actions/.github/workflows/trivy-repo.yml@v1
+    uses: nkg/github-actions/.github/workflows/trivy-repo.yml@v2
     with:
       scan-type: fs
   config:
-    uses: sproncy/.github-actions/.github/workflows/trivy-repo.yml@v1
+    uses: nkg/github-actions/.github/workflows/trivy-repo.yml@v2
     with:
       scan-type: config
       skip-dirs: |
@@ -266,7 +266,7 @@ name: SOPS audit
 on: [push, pull_request]
 jobs:
   audit:
-    uses: sproncy/.github-actions/.github/workflows/sops-audit.yml@v1
+    uses: nkg/github-actions/.github/workflows/sops-audit.yml@v2
     with:
       encrypted-glob: '*.encrypted'
       shellcheck: true
@@ -285,7 +285,7 @@ on:
     paths: ['.github/workflows/**', '.github/actions/**']
 jobs:
   lint:
-    uses: sproncy/.github-actions/.github/workflows/lint-workflows.yml@v1
+    uses: nkg/github-actions/.github/workflows/lint-workflows.yml@v2
     with:
       # actionlint's bundled action metadata trails behind upstream.
       # See sproncy-distillery/.github/workflows/lint-workflows.yml for context.
@@ -324,14 +324,14 @@ permissions:
   actions: read
 jobs:
   claude:
-    uses: sproncy/.github-actions/.github/workflows/claude.yml@v1
+    uses: nkg/github-actions/.github/workflows/claude.yml@v2
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 ```
 
 ### Claude code review on every PR
 
-Note: `claude-code-action@v1` self-validates that the workflow file on
+Note: `claude-code-action@v2` self-validates that the workflow file on
 the PR matches the version on the default branch. On the PR that first
 introduces this wrapper, expect one "Workflow validation failed"
 failure — it's safe to ignore (the action's own message says so) and
@@ -352,7 +352,7 @@ permissions:
   id-token: write
 jobs:
   review:
-    uses: sproncy/.github-actions/.github/workflows/claude-code-review.yml@v1
+    uses: nkg/github-actions/.github/workflows/claude-code-review.yml@v2
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 ```
@@ -362,7 +362,7 @@ Pass a repo-specific prompt + restricted gh-tools allow-list:
 ```yaml
 jobs:
   review:
-    uses: sproncy/.github-actions/.github/workflows/claude-code-review.yml@v1
+    uses: nkg/github-actions/.github/workflows/claude-code-review.yml@v2
     with:
       prompt: |
         REPO: ${{ github.repository }}
@@ -379,7 +379,7 @@ Filter to first-time contributors only:
 ```yaml
 jobs:
   review:
-    uses: sproncy/.github-actions/.github/workflows/claude-code-review.yml@v1
+    uses: nkg/github-actions/.github/workflows/claude-code-review.yml@v2
     with:
       filter-first-time-only: true
     secrets:
@@ -397,7 +397,7 @@ on:
     types: [opened]
 jobs:
   assign:
-    uses: sproncy/.github-actions/.github/workflows/auto-assign.yml@v1
+    uses: nkg/github-actions/.github/workflows/auto-assign.yml@v2
     with:
       assignees: nkg
 ```
@@ -412,7 +412,7 @@ on:
   pull_request:
 jobs:
   merge:
-    uses: sproncy/.github-actions/.github/workflows/dependabot-auto-merge.yml@v1
+    uses: nkg/github-actions/.github/workflows/dependabot-auto-merge.yml@v2
     # Defaults: squash strategy, skip major bumps.
     # with:
     #   merge-strategy: rebase
@@ -440,7 +440,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
-    uses: sproncy/.github-actions/.github/workflows/auto-revert-on-main-failure.yml@v1
+    uses: nkg/github-actions/.github/workflows/auto-revert-on-main-failure.yml@v2
     with:
       bad-sha: ${{ github.event.workflow_run.head_sha }}
       failed-run-url: ${{ github.event.workflow_run.html_url }}
@@ -460,7 +460,7 @@ on:
   workflow_dispatch:
 jobs:
   cleanup:
-    uses: sproncy/.github-actions/.github/workflows/stale-run-cleanup.yml@v1
+    uses: nkg/github-actions/.github/workflows/stale-run-cleanup.yml@v2
     # with:
     #   min-age-minutes: 5     # grace period before a superseded run is cancelled
     #   dry-run: true          # log only
@@ -527,7 +527,7 @@ name: CI
 on: [push, pull_request]
 jobs:
   build:
-    uses: sproncy/.github-actions/.github/workflows/turbo.yml@v1
+    uses: nkg/github-actions/.github/workflows/turbo.yml@v2
     with:
       turbo-tasks: "lint type-check test build"
       turbo-filter: "@my-org/web @my-org/api"
@@ -554,7 +554,7 @@ jobs:
   web:
     needs: changes
     if: needs.changes.outputs.web == 'true'
-    uses: sproncy/.github-actions/.github/workflows/turbo.yml@v1
+    uses: nkg/github-actions/.github/workflows/turbo.yml@v2
     with:
       turbo-tasks: "lint type-check test build"
       turbo-filter: "@my-org/web"
@@ -569,7 +569,7 @@ name: Molecule
 on: [push, pull_request]
 jobs:
   molecule:
-    uses: sproncy/.github-actions/.github/workflows/molecule.yml@v1
+    uses: nkg/github-actions/.github/workflows/molecule.yml@v2
     with:
       roles: |
         common
@@ -587,7 +587,7 @@ name: TOML lint
 on: [push, pull_request]
 jobs:
   toml:
-    uses: sproncy/.github-actions/.github/workflows/toml-lint.yml@v1
+    uses: nkg/github-actions/.github/workflows/toml-lint.yml@v2
 ```
 
 ### Bats + shellcheck
@@ -597,7 +597,7 @@ name: Bash tests
 on: [push, pull_request]
 jobs:
   bash:
-    uses: sproncy/.github-actions/.github/workflows/bats.yml@v1
+    uses: nkg/github-actions/.github/workflows/bats.yml@v2
     with:
       test-paths: tests/
       # Auto-detects scripts/ + tests/ + bin/ when shellcheck-paths is empty
@@ -608,7 +608,7 @@ Pinning bats and customising shellcheck scope:
 ```yaml
 jobs:
   bash:
-    uses: sproncy/.github-actions/.github/workflows/bats.yml@v1
+    uses: nkg/github-actions/.github/workflows/bats.yml@v2
     with:
       bats-version: "1.11.0"
       test-paths: "tests/sops tests/restore"
@@ -629,8 +629,8 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: sproncy/.github-actions/.github/actions/setup-sops@v1
+      - uses: actions/checkout@v6
+      - uses: nkg/github-actions/.github/actions/setup-sops@v2
         with:
           age-key: ${{ secrets.SOPS_AGE_KEY }}
           decrypt-file: secrets.enc.yaml
@@ -647,8 +647,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: sproncy/.github-actions/.github/actions/setup-deps-reader@v1
+      - uses: actions/checkout@v6
+      - uses: nkg/github-actions/.github/actions/setup-deps-reader@v2
         with:
           app-client-id: ${{ vars.DEPS_READER_CLIENT_ID }}
           app-private-key: ${{ secrets.DEPS_READER_PRIVATE_KEY }}
@@ -664,8 +664,8 @@ jobs:
   scan:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: sproncy/.github-actions/.github/actions/setup-trivy@v1
+      - uses: actions/checkout@v6
+      - uses: nkg/github-actions/.github/actions/setup-trivy@v2
       - run: trivy fs --severity HIGH,CRITICAL .
 
   sign:
@@ -674,6 +674,6 @@ jobs:
       id-token: write
       contents: read
     steps:
-      - uses: sproncy/.github-actions/.github/actions/setup-cosign@v1
-      - run: cosign sign --yes ghcr.io/sproncy/api@sha256:...
+      - uses: nkg/github-actions/.github/actions/setup-cosign@v2
+      - run: cosign sign --yes ghcr.io/nkg/pi@sha256:...
 ```
