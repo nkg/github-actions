@@ -468,6 +468,10 @@ jobs:
 
 Pairs with a `dependabot.yml` config — merges patch/minor bumps automatically once required checks pass. Major bumps are gated.
 
+There are two trigger styles; pick by plan.
+
+**Team / Enterprise (native auto-merge):** the default. Triggers on `pull_request` and uses `gh pr merge --auto`, which queues the merge until required checks pass.
+
 ```yaml
 name: Dependabot auto-merge
 on:
@@ -475,11 +479,28 @@ on:
 jobs:
   merge:
     uses: nkg/github-actions/.github/workflows/dependabot-auto-merge.yml@v2
-    # Defaults: squash strategy, skip major bumps.
+    # Defaults: squash strategy, skip major bumps, use-auto-merge: true.
     # with:
     #   merge-strategy: rebase
     #   auto-merge-major: true
 ```
+
+**Free plan (`workflow_run` immediate-merge):** GitHub restricts native auto-merge to Team/Enterprise on **private** repos, so `--auto` can't work there. Instead, trigger *after* your CI workflow completes and set `use-auto-merge: false` — the workflow finds the Dependabot PR for that run and merges it immediately (CI already passed). Replace `CI` with the exact `name:` of your CI workflow.
+
+```yaml
+name: Dependabot auto-merge
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+jobs:
+  merge:
+    uses: nkg/github-actions/.github/workflows/dependabot-auto-merge.yml@v2
+    with:
+      use-auto-merge: false
+```
+
+The `if:` guard (Dependabot actor + successful run) lives inside the reusable, so the stub stays this small. Major-bump gating on this path is best-effort from the PR title: **grouped** updates can't be classified from the title and are treated as non-major. Keep majors manual where that matters, or set `auto-merge-major: true` to merge them too.
 
 ### Auto-revert when main CI fails
 

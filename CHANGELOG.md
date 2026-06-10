@@ -6,6 +6,21 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ## [Unreleased]
 
+### Added
+
+- `dependabot-auto-merge.yml` — `use-auto-merge` input (default `true`) plus a
+  `workflow_run` trigger path, so the workflow works on **Free-plan private
+  repos**. GitHub gates native auto-merge (`gh pr merge --auto`) to
+  Team/Enterprise on private repos; setting `use-auto-merge: false` and
+  triggering on `workflow_run` (after CI succeeds) resolves the Dependabot PR
+  for that run and merges it immediately instead. The default `pull_request`
+  path is unchanged — fully backwards-compatible for current callers. Major
+  bumps are gated accurately via `fetch-metadata` on the `pull_request` path
+  and best-effort from the PR title on the `workflow_run` path (grouped
+  updates are treated as non-major). Generalises the inert
+  `dependabot-auto-merge.yml` that HordiaLabs/extractor-llm hit on the Free
+  plan. See examples/README.md for both stubs.
+
 ## [2.6.0] - 2026-06-10
 
 ### Added
