@@ -495,6 +495,11 @@ on:
     types: [completed]
 jobs:
   merge:
+    # workflow_run runs with the repo default token; if that's read-only
+    # (the safe org default), grant write here so the reusable can merge.
+    permissions:
+      contents: write
+      pull-requests: write
     uses: nkg/github-actions/.github/workflows/dependabot-auto-merge.yml@v2
     with:
       use-auto-merge: false
