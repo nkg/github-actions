@@ -1,4 +1,4 @@
-# sproncy/.github-actions
+# nkg/github-actions
 
 Centralised reusable GitHub Actions workflows and composite actions for the
 Sproncy org. Consumed by ~20 sibling repos via `uses:` pinned tags.
@@ -73,8 +73,8 @@ doesn't false-positive.
 Workflows are consumed by tag. Tags follow `vMAJOR.MINOR.PATCH` and a
 floating `vMAJOR` tag tracks the latest non-breaking release on that line.
 
-- Pin to `@v1` for low-friction updates within a major version.
-- Pin to `@v1.4.2` (or a SHA) when you need bit-for-bit reproducibility.
+- Pin to `@v2` for low-friction updates within a major version.
+- Pin to `@v2.4.0` (or a SHA) when you need bit-for-bit reproducibility.
 
 Breaking changes bump the major. See `CHANGELOG.md`.
 
@@ -91,7 +91,7 @@ on:
 
 jobs:
   test:
-    uses: sproncy/.github-actions/.github/workflows/python-uv.yml@v1
+    uses: nkg/github-actions/.github/workflows/python-uv.yml@v2
     with:
       python-version: "3.12"
     secrets: inherit
@@ -122,7 +122,7 @@ which default to the self-hosted pool.
 ```yaml
 steps:
   - uses: actions/checkout@v6
-  - uses: sproncy/.github-actions/.github/actions/setup-mise@v1
+  - uses: nkg/github-actions/.github/actions/setup-mise@v2
   - run: mise run build
 ```
 
@@ -137,7 +137,7 @@ steps:
 | `scrapy.yml`          | python-uv + `scrapy list` + `scrapy check` (+ optional smoke)    |
 | `node-bun.yml`        | Bun-based Node/TS: install, lint, typecheck, test, build         |
 | `turbo.yml`           | Bun + Turborepo monorepo (cache, tasks, optional filters)        |
-| `elixir.yml`          | Mix: deps, format check, credo, test (matrix on otp/elixir)      |
+| `elixir.yml`          | Mix: deps, format check, credo, test; opt-in dialyzer/sobelow/audits |
 | `go.yml`              | Go: gofmt, vet, optional staticcheck/govulncheck, test+coverage  |
 | `expo.yml`            | Expo/RN: install, lint, typecheck, optional EAS build            |
 | `opentofu.yml`        | OpenTofu: fmt, init, validate, plan (apply gated by env)         |
@@ -168,6 +168,7 @@ steps:
 | `auto-assign.yml`         | Auto-assign new issues and PRs to a user list                  |
 | `dependabot-auto-merge.yml`| Auto-merges Dependabot PRs (major bumps gated by default)     |
 | `auto-revert-on-main-failure.yml`| Opens a revert PR when main CI fails (free-plan branch-protection workaround) |
+| `stale-run-cleanup.yml`   | Cancels superseded queued runs on a shared runner pool (min-age guard, dry-run) |
 
 ## Available composite actions
 
@@ -199,7 +200,7 @@ are single-job.
 
 Renovate is configured (`renovate.json`) to bump pinned actions automatically.
 Consumers should also enable Renovate to keep their pin to this repo
-(`sproncy/.github-actions`) up to date.
+(`nkg/github-actions`) up to date.
 
 ## Releasing
 
