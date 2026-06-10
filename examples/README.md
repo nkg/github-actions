@@ -247,8 +247,8 @@ jobs:
     uses: nkg/github-actions/.github/workflows/container-security.yml@v2
     with:
       image-list: |
-        ghcr.io/sproncy/api:latest
-        ghcr.io/sproncy/web:latest
+        ghcr.io/nkg/api:latest
+        ghcr.io/nkg/web:latest
 ```
 
 ### Trivy repo scan (filesystem + IaC)
@@ -647,7 +647,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: nkg/github-actions/.github/actions/setup-sops@v2
         with:
           age-key: ${{ secrets.SOPS_AGE_KEY }}
@@ -665,7 +665,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: nkg/github-actions/.github/actions/setup-deps-reader@v2
         with:
           app-client-id: ${{ vars.DEPS_READER_CLIENT_ID }}
@@ -682,7 +682,7 @@ jobs:
   scan:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: nkg/github-actions/.github/actions/setup-trivy@v2
       - run: trivy fs --severity HIGH,CRITICAL .
 
@@ -693,7 +693,7 @@ jobs:
       contents: read
     steps:
       - uses: nkg/github-actions/.github/actions/setup-cosign@v2
-      - run: cosign sign --yes ghcr.io/sproncy/api@sha256:...
+      - run: cosign sign --yes ghcr.io/nkg/api@sha256:...
 ```
 
 ### mise (pinned dev toolchain) for a custom job
@@ -703,7 +703,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: nkg/github-actions/.github/actions/setup-mise@v2   # runs `mise install` from .mise.toml
       - run: mise run build
 ```
@@ -715,7 +715,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: nkg/github-actions/.github/actions/setup-go@v2
         with:
           go-version: "1.23"
@@ -739,7 +739,7 @@ jobs:
           app-client-id: ${{ vars.APP_CLIENT_ID }}
           app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
           permission-contents: write          # omit all permission-* for the installation's full set
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           token: ${{ steps.token.outputs.token }}
       - run: git push
