@@ -71,6 +71,28 @@ on:
         description: "Package pattern to fuzz"
         type: string
         default: "./..."
+      postgres-enabled:
+        description: |
+          Start a throwaway Postgres container before the test step and export
+          DATABASE_URL into the job env so DB-gated integration tests run in CI.
+          Implemented as a conditional `docker run` step (not a `services:`
+          block) precisely so it stays opt-in — a `services:` map can't be
+          gated by an input, which would force every consumer to pay for
+          Postgres. Off by default: zero impact for non-DB consumers.
+        type: boolean
+        default: false
+      postgres-image:
+        type: string
+        default: "postgres:16-alpine"
+      postgres-user:
+        type: string
+        default: "postgres"
+      postgres-password:
+        type: string
+        default: "postgres"
+      postgres-db:
+        type: string
+        default: "postgres"
     secrets:
       DEPS_READER_PRIVATE_KEY:
         description: "Private key for the deps-reader GitHub App (required when deps-reader-client-id is set)"
@@ -132,6 +154,42 @@ jobs:
         run: |
           go install golang.org/x/vuln/cmd/govulncheck@latest
           "$(go env GOPATH)/bin/govulncheck" ./...
+
+      # Conditional Postgres for DB-gated integration tests. A `docker run`
+      # step rather than a job-level `services:` block, because services
+      # can't be gated by an input — this keeps Postgres entirely opt-in so
+      # non-DB consumers don't spin one up. Exports DATABASE_URL via
+      # $GITHUB_ENV; the Test step inherits it.
+      - name: Start Postgres
+        if: inputs.run-tests && inputs.postgres-enabled
+        env:
+          PG_IMAGE: ${{ inputs.postgres-image }}
+          PG_USER: ${{ inputs.postgres-user }}
+          PG_PASSWORD: ${{ inputs.postgres-password }}
+          PG_DB: ${{ inputs.postgres-db }}
+        run: |
+          set -euo pipefail
+          docker run -d --name ci-postgres \
+            -e POSTGRES_USER="$PG_USER" \
+            -e POSTGRES_PASSWORD="$PG_PASSWORD" \
+            -e POSTGRES_DB="$PG_DB" \
+            -p 5432:5432 \
+            "$PG_IMAGE"
+          # Poll pg_isready inside the container until it accepts connections
+          # (image pull + init can take a few seconds), capped at ~30s.
+          for i in $(seq 1 30); do
+            if docker exec ci-postgres pg_isready -U "$PG_USER" -d "$PG_DB" >/dev/null 2>&1; then
+              echo "postgres ready after ${i}s"
+              break
+            fi
+            if [ "$i" = "30" ]; then
+              echo "::error::postgres did not become ready in 30s"
+              docker logs ci-postgres || true
+              exit 1
+            fi
+            sleep 1
+          done
+          echo "DATABASE_URL=postgres://${PG_USER}:${PG_PASSWORD}@localhost:5432/${PG_DB}?sslmode=disable" >> "$GITHUB_ENV"
 
       - name: Test
         if: inputs.run-tests

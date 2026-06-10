@@ -43,6 +43,22 @@ on:
           in the caller. Build secrets are not persisted in image layers.
         type: string
         default: ""
+      deps-reader-client-id:
+        description: |
+          GitHub App client ID for private-module access *inside the build*.
+          When set, a scoped installation token is minted (via setup-token)
+          and injected as the `github_token` BuildKit secret, so a Dockerfile
+          that does `--mount=type=secret,id=github_token ... go mod download`
+          (or equivalent) can resolve private modules without the caller
+          having to mint the token itself. Merged with any `build-secrets`.
+          Pair with deps-reader-repositories + the DEPS_READER_PRIVATE_KEY
+          secret. Empty = no token minted (existing behaviour).
+        type: string
+        default: ""
+      deps-reader-repositories:
+        description: "Comma-separated repo names (no owner) the minted token is scoped to. Required when deps-reader-client-id is set."
+        type: string
+        default: ""
       run-trivy-scan:
         description: "Scan the built image with Trivy after push. Requires push: true."
         type: boolean
@@ -69,6 +85,9 @@ on:
       registry-password:
         description: "Registry password / token (defaults to GITHUB_TOKEN when unset)"
         required: false
+      DEPS_READER_PRIVATE_KEY:
+        description: "Private key for the deps-reader GitHub App (required when deps-reader-client-id is set)"
+        required: false
 
 jobs:
   build:
@@ -89,6 +108,21 @@ jobs:
 
       - uses: docker/setup-qemu-action@v4
       - uses: docker/setup-buildx-action@v4
+
+      # Mint a scoped App token for private modules pulled during the build.
+      # setup-token (not setup-deps-reader) because we only need the token as
+      # an output to feed BuildKit — the build runs in its own container and
+      # doesn't read the runner's host git config. The token is masked, so it
+      # never appears in logs even though it flows through the build secret.
+      - name: Mint private-deps token
+        id: deps-reader
+        if: inputs.deps-reader-client-id != ''
+        uses: nkg/github-actions/.github/actions/setup-token@v2
+        with:
+          app-client-id: ${{ inputs.deps-reader-client-id }}
+          app-private-key: ${{ secrets.DEPS_READER_PRIVATE_KEY }}
+          repositories: ${{ inputs.deps-reader-repositories }}
+          permission-contents: read
 
       - name: Login to ${{ inputs.registry }}
         if: inputs.push
@@ -122,7 +156,12 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: ${{ inputs.build-args }}
-          secrets: ${{ inputs.build-secrets }}
+          # Caller-supplied build-secrets plus, when deps-reader is configured,
+          # the minted token as `github_token`. Empty lines (either side unset)
+          # are ignored by build-push-action.
+          secrets: |
+            ${{ inputs.build-secrets }}
+            ${{ inputs.deps-reader-client-id != '' && format('github_token={0}', steps.deps-reader.outputs.token) || '' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
