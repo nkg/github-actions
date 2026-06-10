@@ -4,6 +4,26 @@ name: Dependabot auto-merge
 # bumps are gated by default since they usually need a human review.
 # Lift from HordiaLabs/store-clickhouse generalised with strategy + major
 # toggle inputs.
+#
+# Two trigger styles, picked by the caller:
+#
+#   1. on: pull_request  + use-auto-merge: true  (default)
+#      Uses GitHub's native auto-merge (`gh pr merge --auto`). The PR merges
+#      itself once required checks pass. Requires the auto-merge feature,
+#      which on PRIVATE repos is Team/Enterprise-only — it silently can't be
+#      enabled on the Free plan, so `--auto` fails there.
+#
+#   2. on: workflow_run + use-auto-merge: false  (Free-plan path)
+#      Fire this after your CI workflow completes; if that run was a
+#      successful Dependabot PR run, merge it immediately (no native
+#      auto-merge feature needed). Works on every plan. See examples/README.md
+#      for the caller stub.
+#
+# Both paths gate major bumps the same way: accurately via fetch-metadata on
+# the pull_request path, and best-effort from the PR title on the
+# workflow_run path (grouped updates can't be classified from the title and
+# are treated as non-major — set auto-merge-major or keep majors manual if
+# that matters to you).
 
 on:
   workflow_call:
@@ -20,31 +40,110 @@ on:
         description: "Also auto-merge major version bumps (off by default — usually wants a human)"
         type: boolean
         default: false
+      use-auto-merge:
+        description: |
+          true (default): use GitHub's native auto-merge (`gh pr merge --auto`)
+          — pair with `on: pull_request`. Needs the auto-merge feature
+          (Team/Enterprise on private repos).
+          false: merge immediately — pair with `on: workflow_run` so this only
+          fires after CI has already passed. Works on the Free plan.
+        type: boolean
+        default: true
 
 jobs:
   auto-merge:
-    if: github.actor == 'dependabot[bot]'
+    # Accept a direct pull_request trigger, or a workflow_run trigger that
+    # fired for a successful Dependabot pull_request CI run (the Free-plan
+    # path — workflow_run runs in the base-repo context with a full token,
+    # unlike the restricted token on the dependabot PR run itself).
+    if: |
+      (github.event_name == 'pull_request' && github.actor == 'dependabot[bot]') ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.event == 'pull_request' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.actor.login == 'dependabot[bot]')
     runs-on: ${{ fromJSON(inputs.runs-on) }}
     permissions:
       contents: write
       pull-requests: write
     steps:
+      - name: Resolve PR number
+        id: pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          EVENT: ${{ github.event_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          WR_SHA: ${{ github.event.workflow_run.head_sha }}
+          WR_BRANCH: ${{ github.event.workflow_run.head_branch }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT" = "pull_request" ]; then
+            echo "number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # workflow_run carries no PR payload — find the open PR whose head
+          # matches the run's branch + SHA.
+          num=$(gh pr list --repo "$REPO" --head "$WR_BRANCH" --state open \
+            --json number,headRefOid \
+            --jq "map(select(.headRefOid == \"$WR_SHA\")) | .[0].number // empty")
+          if [ -z "$num" ]; then
+            echo "no open PR at $WR_SHA on $WR_BRANCH — nothing to merge"
+            echo "skip=1" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "number=$num" >> "$GITHUB_OUTPUT"
+
+      # Accurate major detection for the pull_request path.
       - name: Fetch Dependabot metadata
         id: metadata
+        if: steps.pr.outputs.skip != '1' && github.event_name == 'pull_request'
         uses: dependabot/fetch-metadata@v3
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Auto-merge
-        if: inputs.auto-merge-major || steps.metadata.outputs.update-type != 'version-update:semver-major'
+      # Best-effort major detection for the workflow_run path (no PR payload
+      # for fetch-metadata to read, so parse the title).
+      - name: Classify update from title
+        id: title
+        if: steps.pr.outputs.skip != '1' && github.event_name == 'workflow_run'
         env:
-          PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR: ${{ steps.pr.outputs.number }}
+        run: |
+          set -euo pipefail
+          title=$(gh pr view "$PR" --repo "$REPO" --json title --jq .title)
+          is_major=no
+          # Match "... from X.Y.Z to A.B.C" and compare the major components.
+          if [[ "$title" =~ from[[:space:]]+([0-9]+)\.[0-9]+[^[:space:]]*[[:space:]]+to[[:space:]]+([0-9]+)\.[0-9]+ ]]; then
+            [ "${BASH_REMATCH[1]}" != "${BASH_REMATCH[2]}" ] && is_major=yes
+          fi
+          echo "is_major=$is_major" >> "$GITHUB_OUTPUT"
+
+      - name: Merge
+        if: |
+          steps.pr.outputs.skip != '1' && (
+            inputs.auto-merge-major ||
+            (github.event_name == 'pull_request' && steps.metadata.outputs.update-type != 'version-update:semver-major') ||
+            (github.event_name == 'workflow_run' && steps.title.outputs.is_major != 'yes')
+          )
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR: ${{ steps.pr.outputs.number }}
           STRATEGY: ${{ inputs.merge-strategy }}
+          USE_AUTO: ${{ inputs.use-auto-merge }}
         run: |
           set -euo pipefail
           case "$STRATEGY" in
             squash|merge|rebase) ;;
             *) echo "::error::invalid merge-strategy: $STRATEGY (expected squash|merge|rebase)"; exit 1 ;;
           esac
-          gh pr merge --auto --"$STRATEGY" "$PR_URL"
+          if [ "$USE_AUTO" = "true" ]; then
+            # Native auto-merge: queues the merge until required checks pass.
+            gh pr merge --auto --"$STRATEGY" --repo "$REPO" "$PR"
+          else
+            # Immediate merge — only reached on workflow_run after CI succeeded.
+            gh pr merge --"$STRATEGY" --repo "$REPO" "$PR"
+          fi
