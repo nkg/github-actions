@@ -155,6 +155,27 @@ jobs:
       run-govulncheck: true
 ```
 
+Go with private modules (mints a deps-reader token before `go mod download`)
+and a fuzz smoke pass:
+
+```yaml
+name: CI
+on: [push, pull_request]
+jobs:
+  go:
+    uses: nkg/github-actions/.github/workflows/go.yml@v2
+    with:
+      go-version: "1.26"
+      deps-reader-client-id: ${{ vars.DEPS_READER_CLIENT_ID }}
+      deps-reader-repositories: scraper-core
+      run-fuzz: true
+      fuzz-target: FuzzExtract
+      fuzz-time: 30s
+      fuzz-package: ./internal/...
+    secrets:
+      DEPS_READER_PRIVATE_KEY: ${{ secrets.DEPS_READER_PRIVATE_KEY }}
+```
+
 ## Scrapy
 
 ```yaml
