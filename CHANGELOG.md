@@ -6,6 +6,8 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ## [Unreleased]
 
+## [2.4.0] - 2026-06-10
+
 ### Added
 
 - `setup-token` — optional `permission-*` inputs for least-privilege
@@ -18,6 +20,11 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
   full-installation behaviour. Passed straight through to
   `actions/create-github-app-token`. Additive — no change for current
   callers.
+
+### Changed
+
+- Dependabot `github-actions` group bump (2 updates) for pinned action
+  versions used by the reusables.
 
 ## [2.3.0] - 2026-06-06
 
@@ -329,19 +336,23 @@ README; everything below is the actual content of this repo.
 ### Changed
 
 - `README.md` rewritten: replaced `<org>/ci` placeholder with the real
-  `sproncy/.github-actions` slug, regrouped workflow table by purpose
+  `nkg/github-actions` slug, regrouped workflow table by purpose
   (build/test, security, bot), documented the runner strategy.
 - `examples/README.md` extended with consumer stubs for every new workflow.
 - Bumped `actions/checkout` from `@v4` to `@v6` across all existing
   workflows for consistency with new files.
 
-[Unreleased]: https://github.com/sproncy/.github-actions/compare/v2.0.0...HEAD
-[2.0.0]: https://github.com/sproncy/.github-actions/compare/v1.3.0...v2.0.0
-[1.3.0]: https://github.com/sproncy/.github-actions/compare/v1.2.2...v1.3.0
-[1.2.2]: https://github.com/sproncy/.github-actions/compare/v1.2.1...v1.2.2
-[1.2.1]: https://github.com/sproncy/.github-actions/compare/v1.2.0...v1.2.1
-[1.2.0]: https://github.com/sproncy/.github-actions/compare/v1.1.2...v1.2.0
-[1.1.2]: https://github.com/sproncy/.github-actions/compare/v1.1.1...v1.1.2
-[1.1.1]: https://github.com/sproncy/.github-actions/compare/v1.1.0...v1.1.1
-[1.1.0]: https://github.com/sproncy/.github-actions/compare/v1.0.0...v1.1.0
-[1.0.0]: https://github.com/sproncy/.github-actions/releases/tag/v1.0.0
+[Unreleased]: https://github.com/nkg/github-actions/compare/v2.4.0...HEAD
+[2.4.0]: https://github.com/nkg/github-actions/compare/v2.3.0...v2.4.0
+[2.3.0]: https://github.com/nkg/github-actions/compare/v2.2.0...v2.3.0
+[2.2.0]: https://github.com/nkg/github-actions/compare/v2.1.0...v2.2.0
+[2.1.0]: https://github.com/nkg/github-actions/compare/v2.0.0...v2.1.0
+[2.0.0]: https://github.com/nkg/github-actions/compare/v1.3.0...v2.0.0
+[1.3.0]: https://github.com/nkg/github-actions/compare/v1.2.2...v1.3.0
+[1.2.2]: https://github.com/nkg/github-actions/compare/v1.2.1...v1.2.2
+[1.2.1]: https://github.com/nkg/github-actions/compare/v1.2.0...v1.2.1
+[1.2.0]: https://github.com/nkg/github-actions/compare/v1.1.2...v1.2.0
+[1.1.2]: https://github.com/nkg/github-actions/compare/v1.1.1...v1.1.2
+[1.1.1]: https://github.com/nkg/github-actions/compare/v1.1.0...v1.1.1
+[1.1.0]: https://github.com/nkg/github-actions/compare/v1.0.0...v1.1.0
+[1.0.0]: https://github.com/nkg/github-actions/releases/tag/v1.0.0

@@ -31,6 +31,24 @@ jobs:
       working-directory: apps/web
 ```
 
+## Expo / React Native
+
+```yaml
+name: CI
+on: [push, pull_request]
+jobs:
+  app:
+    uses: nkg/github-actions/.github/workflows/expo.yml@v2
+    with:
+      bun-version: "1.1"
+    # install + lint + typecheck + tests run by default. Opt into an EAS
+    # build (off by default; needs EXPO_TOKEN):
+    #   run-eas-build: true
+    #   eas-platform: android   # ios | android | all
+    #   eas-profile: preview
+    # secrets: inherit
+```
+
 ## Elixir/Phoenix with matrix
 
 ```yaml
@@ -229,8 +247,8 @@ jobs:
     uses: nkg/github-actions/.github/workflows/container-security.yml@v2
     with:
       image-list: |
-        ghcr.io/nkg/pi:latest
-        ghcr.io/nkg/eb:latest
+        ghcr.io/nkg/api:latest
+        ghcr.io/nkg/web:latest
 ```
 
 ### Trivy repo scan (filesystem + IaC)
@@ -331,7 +349,7 @@ jobs:
 
 ### Claude code review on every PR
 
-Note: `claude-code-action@v2` self-validates that the workflow file on
+Note: `claude-code-action@v1` self-validates that the workflow file on
 the PR matches the version on the default branch. On the PR that first
 introduces this wrapper, expect one "Workflow validation failed"
 failure — it's safe to ignore (the action's own message says so) and
@@ -675,5 +693,54 @@ jobs:
       contents: read
     steps:
       - uses: nkg/github-actions/.github/actions/setup-cosign@v2
-      - run: cosign sign --yes ghcr.io/nkg/pi@sha256:...
+      - run: cosign sign --yes ghcr.io/nkg/api@sha256:...
+```
+
+### mise (pinned dev toolchain) for a custom job
+
+```yaml
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: nkg/github-actions/.github/actions/setup-mise@v2   # runs `mise install` from .mise.toml
+      - run: mise run build
+```
+
+### Go toolchain for a custom job
+
+```yaml
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: nkg/github-actions/.github/actions/setup-go@v2
+        with:
+          go-version: "1.23"
+      - run: go build ./...
+```
+
+### Mint a GitHub App token
+
+`setup-token` mints a short-lived App installation token (e.g. to push
+commits that re-trigger workflows, or call the API as the App). Scope it
+to least privilege with the optional `permission-*` inputs:
+
+```yaml
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: nkg/github-actions/.github/actions/setup-token@v2
+        id: token
+        with:
+          app-client-id: ${{ vars.APP_CLIENT_ID }}
+          app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          permission-contents: write          # omit all permission-* for the installation's full set
+      - uses: actions/checkout@v6
+        with:
+          token: ${{ steps.token.outputs.token }}
+      - run: git push
 ```
