@@ -6,6 +6,8 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ## [Unreleased]
 
+## [2.8.0] - 2026-06-10
+
 ### Added
 
 - `expo.yml` + `node-bun.yml` — **package-manager-agnostic** toolchain.
