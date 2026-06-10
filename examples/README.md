@@ -125,6 +125,27 @@ jobs:
       push: ${{ github.event_name != 'pull_request' }}
 ```
 
+Build a Dockerfile that pulls **private modules**. The workflow mints a scoped
+deps-reader token and injects it as the `github_token` BuildKit secret, so the
+build can fetch private repos without the caller minting the token itself.
+Consume it in the Dockerfile with
+`RUN --mount=type=secret,id=github_token …`:
+
+```yaml
+jobs:
+  image:
+    uses: nkg/github-actions/.github/workflows/docker-build.yml@v2
+    with:
+      image-name: ${{ github.repository }}
+      push: ${{ github.event_name != 'pull_request' }}
+      deps-reader-client-id: ${{ vars.DEPS_READER_CLIENT_ID }}
+      deps-reader-repositories: scraper-core
+      # build-secrets: |          # merged with the minted github_token
+      #   npm_token=${{ secrets.NPM_TOKEN }}
+    secrets:
+      DEPS_READER_PRIVATE_KEY: ${{ secrets.DEPS_READER_PRIVATE_KEY }}
+```
+
 ## Ansible
 
 ```yaml
@@ -178,6 +199,42 @@ jobs:
       # govulncheck-soft: true   # report CVEs without failing the build
     secrets:
       DEPS_READER_PRIVATE_KEY: ${{ secrets.DEPS_READER_PRIVATE_KEY }}
+```
+
+Go with `golangci-lint` and `gowork-off`. Pin `golangci-lint-version` to the
+same version as your local mise/`.tool-versions` entry so CI and dev agree.
+`gowork-off: true` exports `GOWORK=off` for every step, so a parent `go.work`
+`replace` can't mask a stale `go.mod` pin — the module resolves exactly as a
+fresh single-module checkout would:
+
+```yaml
+name: CI
+on: [push, pull_request]
+jobs:
+  go:
+    uses: nkg/github-actions/.github/workflows/go.yml@v2
+    with:
+      go-version: "1.26"
+      run-golangci-lint: true
+      golangci-lint-version: "2.11.4"   # match your .tool-versions
+      gowork-off: true
+```
+
+Go with a throwaway Postgres for DB-gated integration tests. The workflow
+starts the container before the test step and exports `DATABASE_URL` into the
+job env, so tests that skip when `DATABASE_URL` is unset actually run:
+
+```yaml
+name: CI
+on: [push, pull_request]
+jobs:
+  go:
+    uses: nkg/github-actions/.github/workflows/go.yml@v2
+    with:
+      go-version: "1.26"
+      postgres-enabled: true
+      # postgres-image: "postgres:16-alpine"   # default
+      # postgres-user / postgres-password / postgres-db also configurable
 ```
 
 ## Scrapy
