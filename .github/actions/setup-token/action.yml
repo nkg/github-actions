@@ -12,7 +12,11 @@ description: |
 
   The minted token carries the App installation's permissions. Scope it
   down to specific repos with the `repositories` input; leave empty to
-  grant access to every repo the installation can reach.
+  grant access to every repo the installation can reach. Scope down the
+  *permissions* with the `permission-*` inputs (e.g. `permission-contents:
+  read`): set any one and the token is restricted to exactly the
+  permissions you list (a subset of the installation's); leave them all
+  empty for the installation's full permission set.
 
 inputs:
   app-client-id:
@@ -27,6 +31,49 @@ inputs:
     default: ""
   repositories:
     description: "Comma-separated repo names (no owner) to scope the token to. Empty = all repos the installation can reach."
+    required: false
+    default: ""
+
+  # Least-privilege scoping (all optional, default empty). Setting ANY of
+  # these restricts the token to exactly the permissions listed — a subset
+  # of the App installation's. Leaving them all empty mints a token with
+  # the installation's full permission set. Passed straight through to
+  # actions/create-github-app-token; if you need a scope not listed here,
+  # add it from that action's `permission-*` inputs.
+  permission-contents:
+    description: "Repository contents (files, commits, branches): read | write"
+    required: false
+    default: ""
+  permission-pull-requests:
+    description: "Pull requests (comment, label, merge): read | write"
+    required: false
+    default: ""
+  permission-issues:
+    description: "Issues (comment, label): read | write"
+    required: false
+    default: ""
+  permission-actions:
+    description: "Actions — workflow runs (trigger, cancel, rerun): read | write"
+    required: false
+    default: ""
+  permission-checks:
+    description: "Check runs and suites: read | write"
+    required: false
+    default: ""
+  permission-statuses:
+    description: "Commit statuses: read | write"
+    required: false
+    default: ""
+  permission-deployments:
+    description: "Deployments: read | write"
+    required: false
+    default: ""
+  permission-packages:
+    description: "Packages — GHCR (pull, push): read | write"
+    required: false
+    default: ""
+  permission-workflows:
+    description: "Workflow files under .github/workflows: write"
     required: false
     default: ""
 
@@ -55,3 +102,15 @@ runs:
         # repo the installation can reach under that owner (not zero repos),
         # so passing it through unconditionally is safe.
         repositories: ${{ inputs.repositories }}
+        # Empty permission-* inputs are ignored by create-github-app-token,
+        # so unset ones are no-ops; setting any restricts the token to the
+        # listed permissions (a subset of the installation's).
+        permission-contents: ${{ inputs.permission-contents }}
+        permission-pull-requests: ${{ inputs.permission-pull-requests }}
+        permission-issues: ${{ inputs.permission-issues }}
+        permission-actions: ${{ inputs.permission-actions }}
+        permission-checks: ${{ inputs.permission-checks }}
+        permission-statuses: ${{ inputs.permission-statuses }}
+        permission-deployments: ${{ inputs.permission-deployments }}
+        permission-packages: ${{ inputs.permission-packages }}
+        permission-workflows: ${{ inputs.permission-workflows }}
