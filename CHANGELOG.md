@@ -8,6 +8,25 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ### Added
 
+- `go.yml` — optional throwaway Postgres for DB-gated integration tests.
+  Set `postgres-enabled: true` (with optional `postgres-image` / `-user` /
+  `-password` / `-db`) and the workflow starts a Postgres container before
+  the test step and exports `DATABASE_URL` into the job env, so tests that
+  skip when `DATABASE_URL` is unset actually run in CI. Implemented as a
+  conditional `docker run` step rather than a `services:` block on purpose —
+  a `services:` map can't be gated by an input, so this keeps Postgres fully
+  opt-in and zero-cost for non-DB consumers. Default off — additive, no
+  change for current callers. Generalises the hand-rolled Postgres service
+  in `HordiaLabs/store-postgres`'s CI so that repo can migrate onto `go.yml`.
+- `docker-build.yml` — optional private-deps access *inside the build*.
+  Set `deps-reader-client-id` + `deps-reader-repositories` (and pass the
+  `DEPS_READER_PRIVATE_KEY` secret) and the workflow mints a scoped App
+  token via `setup-token` and injects it as the `github_token` BuildKit
+  secret, merged with any `build-secrets`. Lets a Dockerfile that pulls
+  private modules build through the reusable without the caller minting the
+  token itself (which a reusable can't accept from a step output). Empty
+  `deps-reader-client-id` keeps existing behaviour — additive.
+
 - `dependabot-auto-merge.yml` — `use-auto-merge` input (default `true`) plus a
   `workflow_run` trigger path, so the workflow works on **Free-plan private
   repos**. GitHub gates native auto-merge (`gh pr merge --auto`) to
