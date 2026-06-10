@@ -6,6 +6,19 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ## [Unreleased]
 
+### Added
+
+- `setup-token` — optional `permission-*` inputs for least-privilege
+  scoping: `permission-contents`, `permission-pull-requests`,
+  `permission-issues`, `permission-actions`, `permission-checks`,
+  `permission-statuses`, `permission-deployments`, `permission-packages`,
+  `permission-workflows` (each `read`/`write`, default empty). Setting any
+  restricts the minted token to exactly those permissions (a subset of the
+  App installation's); leaving them all empty keeps the existing
+  full-installation behaviour. Passed straight through to
+  `actions/create-github-app-token`. Additive — no change for current
+  callers.
+
 ## [2.3.0] - 2026-06-06
 
 ### Fixed
