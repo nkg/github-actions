@@ -31,6 +31,29 @@ jobs:
       working-directory: apps/web
 ```
 
+## Playwright integration tests
+
+Drives a real headless Chromium inside the Playwright runtime image —
+no browser download per run. Pin `playwright-image` to the same tag as
+your `package.json` playwright version + Dockerfile base. Pass an
+`npm-scope` (and `NODE_AUTH_TOKEN`) when the integration deps live in a
+private org registry:
+
+```yaml
+name: Integration
+on: [push, pull_request]
+jobs:
+  integration:
+    uses: nkg/github-actions/.github/workflows/playwright-integration.yml@v2
+    with:
+      playwright-image: "mcr.microsoft.com/playwright:v1.60.0-noble"
+      npm-scope: "@hordialabs"
+      bun-version: "1.3.9"           # pin to your mise.toml
+      test-command: "npm run test:integration"
+    secrets:
+      NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
+
 ## Expo / React Native
 
 ```yaml
@@ -370,7 +393,7 @@ jobs:
 
 ### Claude code review on every PR
 
-Note: `claude-code-action@v1` self-validates that the workflow file on
+Note: `claude-code-action@v2` self-validates that the workflow file on
 the PR matches the version on the default branch. On the PR that first
 introduces this wrapper, expect one "Workflow validation failed"
 failure — it's safe to ignore (the action's own message says so) and
