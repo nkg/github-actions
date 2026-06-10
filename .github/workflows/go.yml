@@ -13,6 +13,24 @@ on:
       working-directory:
         type: string
         default: "."
+      goprivate:
+        description: |
+          Value for the GOPRIVATE env var, exported for every Go step (mod
+          download, vet, staticcheck, govulncheck, test, fuzz). Required for
+          private modules: it makes `go` skip the public proxy + checksum DB
+          and resolve them directly over git, so the deps-reader credential
+          helper is actually consulted. Pair with deps-reader-*. Empty (the
+          default) = public-module behaviour, unchanged for existing callers.
+        type: string
+        default: ""
+      gowork-off:
+        description: |
+          Set GOWORK=off for every Go step so a parent go.work (a workspace
+          `replace` pointing a dependency at a local working tree) can't mask
+          a stale go.mod pin — the module resolves exactly as go.mod declares,
+          matching a fresh single-module CI checkout. Off by default.
+        type: boolean
+        default: false
       deps-reader-client-id:
         description: |
           GitHub App client ID for private-module access. When set, a scoped
@@ -41,6 +59,23 @@ on:
         description: "Run honnef.co/go/tools/cmd/staticcheck (slower; off by default)"
         type: boolean
         default: false
+      run-golangci-lint:
+        description: |
+          Run golangci-lint. Off by default — gofmt + vet cover the basics
+          for callers without a `.golangci.yml`. When on, the binary is
+          installed at golangci-lint-version and `golangci-lint run ./...`
+          runs against the (already-downloaded) module cache, so private-deps
+          callers must wire deps-reader-* + goprivate as usual.
+        type: boolean
+        default: false
+      golangci-lint-version:
+        description: |
+          golangci-lint version WITHOUT the leading 'v' (e.g. '2.11.4'),
+          matching a mise/.tool-versions pin. Empty installs the latest
+          release. A v2-format `.golangci.yml` (version: "2") requires
+          golangci-lint >= 2.
+        type: string
+        default: ""
       run-tests:
         type: boolean
         default: true
@@ -49,7 +84,15 @@ on:
         type: string
         default: "-race -coverprofile=coverage.out -covermode=atomic ./..."
       run-govulncheck:
-        description: "Run golang.org/x/vuln/cmd/govulncheck"
+        description: "Run golang.org/x/vuln/cmd/govulncheck (blocking — findings fail the job)"
+        type: boolean
+        default: false
+      govulncheck-soft:
+        description: |
+          Run govulncheck but don't fail the build on findings
+          (continue-on-error). Surfaces CVEs without gating CI while an alert
+          backlog is drained. Independent of run-govulncheck; setting either
+          runs the step, and soft mode wins when both are set.
         type: boolean
         default: false
       upload-coverage:
@@ -71,6 +114,28 @@ on:
         description: "Package pattern to fuzz"
         type: string
         default: "./..."
+      postgres-enabled:
+        description: |
+          Start a throwaway Postgres container before the test step and export
+          DATABASE_URL into the job env so DB-gated integration tests run in CI.
+          Implemented as a conditional `docker run` step (not a `services:`
+          block) precisely so it stays opt-in — a `services:` map can't be
+          gated by an input, which would force every consumer to pay for
+          Postgres. Off by default: zero impact for non-DB consumers.
+        type: boolean
+        default: false
+      postgres-image:
+        type: string
+        default: "postgres:16-alpine"
+      postgres-user:
+        type: string
+        default: "postgres"
+      postgres-password:
+        type: string
+        default: "postgres"
+      postgres-db:
+        type: string
+        default: "postgres"
     secrets:
       DEPS_READER_PRIVATE_KEY:
         description: "Private key for the deps-reader GitHub App (required when deps-reader-client-id is set)"
@@ -79,6 +144,13 @@ on:
 jobs:
   ci:
     runs-on: ${{ fromJSON(inputs.runs-on) }}
+    # Exported to every Go step. Empty string is equivalent to unset (no
+    # private patterns), so this is a no-op for public-only callers.
+    env:
+      GOPRIVATE: ${{ inputs.goprivate }}
+      # '' = unset (Go auto-detects go.work); 'off' forces single-module
+      # resolution so a parent workspace replace can't mask a stale go.mod pin.
+      GOWORK: ${{ inputs.gowork-off && 'off' || '' }}
     defaults:
       run:
         working-directory: ${{ inputs.working-directory }}
@@ -127,11 +199,72 @@ jobs:
           go install honnef.co/go/tools/cmd/staticcheck@latest
           "$(go env GOPATH)/bin/staticcheck" ./...
 
+      - name: golangci-lint
+        if: inputs.run-golangci-lint
+        # Install via the official script (pinned by version) rather than
+        # golangci-lint-action so the version tracks the consumer's mise pin
+        # exactly and isn't coupled to the action's golangci-lint v1/v2
+        # support matrix. Runs after `go mod download` so the module cache is
+        # populated — golangci-lint loads packages from it, no network.
+        env:
+          VERSION: ${{ inputs.golangci-lint-version }}
+        run: |
+          set -euo pipefail
+          bindir="$(go env GOPATH)/bin"
+          if [ -n "$VERSION" ]; then
+            curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh \
+              | sh -s -- -b "$bindir" "v${VERSION}"
+          else
+            curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh \
+              | sh -s -- -b "$bindir"
+          fi
+          "$bindir/golangci-lint" version
+          "$bindir/golangci-lint" run ./...
+
       - name: govulncheck
-        if: inputs.run-govulncheck
+        if: inputs.run-govulncheck || inputs.govulncheck-soft
+        # Soft mode reports CVEs without gating the build. continue-on-error
+        # accepts the boolean input directly; false keeps the step blocking.
+        continue-on-error: ${{ inputs.govulncheck-soft }}
         run: |
           go install golang.org/x/vuln/cmd/govulncheck@latest
           "$(go env GOPATH)/bin/govulncheck" ./...
+
+      # Conditional Postgres for DB-gated integration tests. A `docker run`
+      # step rather than a job-level `services:` block, because services
+      # can't be gated by an input — this keeps Postgres entirely opt-in so
+      # non-DB consumers don't spin one up. Exports DATABASE_URL via
+      # $GITHUB_ENV; the Test step inherits it.
+      - name: Start Postgres
+        if: inputs.run-tests && inputs.postgres-enabled
+        env:
+          PG_IMAGE: ${{ inputs.postgres-image }}
+          PG_USER: ${{ inputs.postgres-user }}
+          PG_PASSWORD: ${{ inputs.postgres-password }}
+          PG_DB: ${{ inputs.postgres-db }}
+        run: |
+          set -euo pipefail
+          docker run -d --name ci-postgres \
+            -e POSTGRES_USER="$PG_USER" \
+            -e POSTGRES_PASSWORD="$PG_PASSWORD" \
+            -e POSTGRES_DB="$PG_DB" \
+            -p 5432:5432 \
+            "$PG_IMAGE"
+          # Poll pg_isready inside the container until it accepts connections
+          # (image pull + init can take a few seconds), capped at ~30s.
+          for i in $(seq 1 30); do
+            if docker exec ci-postgres pg_isready -U "$PG_USER" -d "$PG_DB" >/dev/null 2>&1; then
+              echo "postgres ready after ${i}s"
+              break
+            fi
+            if [ "$i" = "30" ]; then
+              echo "::error::postgres did not become ready in 30s"
+              docker logs ci-postgres || true
+              exit 1
+            fi
+            sleep 1
+          done
+          echo "DATABASE_URL=postgres://${PG_USER}:${PG_PASSWORD}@localhost:5432/${PG_DB}?sslmode=disable" >> "$GITHUB_ENV"
 
       - name: Test
         if: inputs.run-tests

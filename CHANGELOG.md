@@ -6,6 +6,43 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ## [Unreleased]
 
+### Added
+
+- `go.yml` — optional `gowork-off`. Set `gowork-off: true` to export
+  `GOWORK=off` for every Go step, so a parent `go.work` (a workspace
+  `replace` pointing a dependency at a local tree) can't mask a stale
+  `go.mod` pin — the module resolves exactly as declared, matching a fresh
+  single-module CI checkout. Default off — additive. Generalises the
+  `GOWORK=off` dep-drift guard in `HordiaLabs/store-clickhouse`'s
+  `make test-ci` / pre-push hook so any private-module consumer gets it.
+- `go.yml` — optional `golangci-lint`. Set `run-golangci-lint: true` (with
+  `golangci-lint-version` pinned to match a mise/`.tool-versions` entry, e.g.
+  `"2.11.4"`) and the workflow installs the pinned binary and runs
+  `golangci-lint run ./...` after `go mod download`. Pins via the official
+  install script rather than `golangci-lint-action` so the version isn't
+  coupled to the action's v1/v2 support matrix. Default off — additive, no
+  change for current callers. Lets repos that lint via golangci-lint (e.g.
+  `HordiaLabs/store-clickhouse`) drop their hand-rolled lint job and migrate
+  onto `go.yml`.
+- `go.yml` — optional throwaway Postgres for DB-gated integration tests.
+  Set `postgres-enabled: true` (with optional `postgres-image` / `-user` /
+  `-password` / `-db`) and the workflow starts a Postgres container before
+  the test step and exports `DATABASE_URL` into the job env, so tests that
+  skip when `DATABASE_URL` is unset actually run in CI. Implemented as a
+  conditional `docker run` step rather than a `services:` block on purpose —
+  a `services:` map can't be gated by an input, so this keeps Postgres fully
+  opt-in and zero-cost for non-DB consumers. Default off — additive, no
+  change for current callers. Generalises the hand-rolled Postgres service
+  in `HordiaLabs/store-postgres`'s CI so that repo can migrate onto `go.yml`.
+- `docker-build.yml` — optional private-deps access *inside the build*.
+  Set `deps-reader-client-id` + `deps-reader-repositories` (and pass the
+  `DEPS_READER_PRIVATE_KEY` secret) and the workflow mints a scoped App
+  token via `setup-token` and injects it as the `github_token` BuildKit
+  secret, merged with any `build-secrets`. Lets a Dockerfile that pulls
+  private modules build through the reusable without the caller minting the
+  token itself (which a reusable can't accept from a step output). Empty
+  `deps-reader-client-id` keeps existing behaviour — additive.
+
 ## [2.6.0] - 2026-06-10
 
 ### Added
