@@ -6,6 +6,27 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ## [Unreleased]
 
+### Added
+
+- `expo.yml` + `node-bun.yml` — **package-manager-agnostic** toolchain.
+  New `package-manager` input (`bun` default, or `npm`/`yarn`/`pnpm`) swaps
+  the setup action (`setup-bun` vs `setup-node` + corepack) and derives the
+  per-step commands; a `use-mise` input installs the toolchain from the
+  repo's `mise.toml` instead (Node, and Bun if pinned), for mise-pinned apps.
+  Added `node-version` to pair with the non-bun path.
+- `expo.yml` — command-override escape hatch: `install-command`,
+  `lint-command`, `typecheck-command`, `test-command` (empty = derive from
+  the package manager). Brings it in line with `node-bun.yml`, and lets
+  npm/`node:test`-style Expo apps point each step at their own scripts.
+
+  Both changes are additive and behaviour-preserving for current callers:
+  the defaults still resolve to the previous Bun commands
+  (`bun install --frozen-lockfile`, `bun test`, `bunx tsc --noEmit`). The
+  `*-command` defaults on `node-bun.yml` changed from literal Bun strings to
+  empty (derive-from-PM), which is identical for the default `package-manager: bun`.
+  Generalises the hand-rolled npm + mise CI in
+  HordiaLabs/NamingThingsIsHardExpoApp so that repo can migrate onto the reusable.
+
 ## [2.6.0] - 2026-06-10
 
 ### Added

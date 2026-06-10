@@ -1,14 +1,33 @@
-name: Node (Bun)
+name: Node
+
+# Node / TypeScript CI: install, lint, typecheck, test, build, optional audit.
+#
+# Package-manager-agnostic. Defaults to Bun (unchanged for existing callers);
+# pass `package-manager: npm` (or yarn/pnpm), or `use-mise: true` to install
+# the toolchain from the repo's mise.toml. Per-step commands auto-derive from
+# the package manager; override any with the *-command inputs.
 
 on:
   workflow_call:
     inputs:
+      package-manager:
+        description: "Package manager: bun | npm | yarn | pnpm"
+        type: string
+        default: "bun"
+      use-mise:
+        description: "Install the toolchain via mise (reads the repo's mise.toml) instead of setup-bun/setup-node. Overrides bun-version/node-version."
+        type: boolean
+        default: false
       bun-version:
-        description: "Bun version (e.g. 'latest', '1.1.x')"
+        description: "Bun version (only when package-manager is bun and use-mise is false)"
         type: string
         default: "latest"
+      node-version:
+        description: "Node version (only when package-manager is npm/yarn/pnpm and use-mise is false)"
+        type: string
+        default: "lts/*"
       working-directory:
-        description: "Directory containing package.json / bun.lockb"
+        description: "Directory containing package.json / the lockfile"
         type: string
         default: "."
       runs-on:
@@ -16,43 +35,43 @@ on:
         type: string
         default: '["ubuntu-latest"]'
       install-command:
-        description: "Install command"
+        description: "Override the install command (empty = derive from package-manager)"
         type: string
-        default: "bun install --frozen-lockfile"
+        default: ""
       run-lint:
         description: "Run lint script"
         type: boolean
         default: true
       lint-command:
-        description: "Lint command"
+        description: "Override the lint command (empty = `<pm> run lint`)"
         type: string
-        default: "bun run lint"
+        default: ""
       run-typecheck:
         description: "Run typecheck script"
         type: boolean
         default: true
       typecheck-command:
-        description: "Typecheck command"
+        description: "Override the typecheck command (empty = `<pm> run typecheck`)"
         type: string
-        default: "bun run typecheck"
+        default: ""
       run-tests:
         description: "Run test script"
         type: boolean
         default: true
       test-command:
-        description: "Test command"
+        description: "Override the test command (empty = `bun test`, or `<pm> test` for npm/yarn/pnpm)"
         type: string
-        default: "bun test"
+        default: ""
       run-build:
         description: "Run build script"
         type: boolean
         default: true
       build-command:
-        description: "Build command"
+        description: "Override the build command (empty = `<pm> run build`)"
         type: string
-        default: "bun run build"
+        default: ""
       run-audit:
-        description: "Run `bun pm audit` against the resolved lockfile"
+        description: "Run the package manager's audit against the resolved lockfile"
         type: boolean
         default: false
       audit-args:
@@ -68,33 +87,83 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: oven-sh/setup-bun@v2
+      - name: Resolve toolchain
+        id: tc
+        env:
+          PM: ${{ inputs.package-manager }}
+        run: |
+          set -euo pipefail
+          case "$PM" in
+            bun)  run="bun run"; install="bun install --frozen-lockfile"; test="bun test";  audit="bun pm audit"; lock="bun.lockb" ;;
+            npm)  run="npm run"; install="npm ci";                        test="npm test";  audit="npm audit";   lock="package-lock.json" ;;
+            yarn) run="yarn";    install="yarn install --frozen-lockfile"; test="yarn test"; audit="yarn npm audit"; lock="yarn.lock" ;;
+            pnpm) run="pnpm run"; install="pnpm install --frozen-lockfile"; test="pnpm test"; audit="pnpm audit";  lock="pnpm-lock.yaml" ;;
+            *) echo "::error::unsupported package-manager: $PM (expected bun|npm|yarn|pnpm)"; exit 1 ;;
+          esac
+          {
+            echo "install=$install"
+            echo "lint=$run lint"
+            echo "typecheck=$run typecheck"
+            echo "test=$test"
+            echo "build=$run build"
+            echo "audit=$audit"
+            echo "lock=$lock"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Setup mise toolchain
+        if: inputs.use-mise
+        env:
+          MISE_YES: "1"
+        run: |
+          set -euo pipefail
+          curl -fsSL https://mise.run | sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          echo "$HOME/.local/share/mise/shims" >> "$GITHUB_PATH"
+          "$HOME/.local/bin/mise" install
+
+      - name: Setup Bun
+        if: ${{ !inputs.use-mise && inputs.package-manager == 'bun' }}
+        uses: oven-sh/setup-bun@v2
         with:
           bun-version: ${{ inputs.bun-version }}
 
+      - name: Enable corepack
+        if: ${{ !inputs.use-mise && (inputs.package-manager == 'yarn' || inputs.package-manager == 'pnpm') }}
+        run: corepack enable
+
+      - name: Setup Node
+        if: ${{ !inputs.use-mise && inputs.package-manager != 'bun' }}
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: ${{ inputs.package-manager }}
+          cache-dependency-path: ${{ inputs.working-directory }}/${{ steps.tc.outputs.lock }}
+
       - name: Install
-        run: ${{ inputs.install-command }}
+        run: ${{ inputs.install-command != '' && inputs.install-command || steps.tc.outputs.install }}
 
       - name: Lint
         if: inputs.run-lint
-        run: ${{ inputs.lint-command }}
+        run: ${{ inputs.lint-command != '' && inputs.lint-command || steps.tc.outputs.lint }}
 
       - name: Typecheck
         if: inputs.run-typecheck
-        run: ${{ inputs.typecheck-command }}
+        run: ${{ inputs.typecheck-command != '' && inputs.typecheck-command || steps.tc.outputs.typecheck }}
 
       - name: Test
         if: inputs.run-tests
-        run: ${{ inputs.test-command }}
+        run: ${{ inputs.test-command != '' && inputs.test-command || steps.tc.outputs.test }}
 
       - name: Build
         if: inputs.run-build
-        run: ${{ inputs.build-command }}
+        run: ${{ inputs.build-command != '' && inputs.build-command || steps.tc.outputs.build }}
 
       - name: Audit
         if: inputs.run-audit
         env:
+          AUDIT: ${{ steps.tc.outputs.audit }}
           ARGS: ${{ inputs.audit-args }}
         run: |
+          # Word-splitting on both is intentional.
           # shellcheck disable=SC2086
-          bun pm audit $ARGS
+          $AUDIT $ARGS

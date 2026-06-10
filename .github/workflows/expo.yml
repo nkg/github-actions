@@ -1,12 +1,32 @@
 name: Expo
 
+# Expo / React Native CI: install, lint, typecheck, test, optional EAS build.
+#
+# Package-manager-agnostic. Defaults to Bun (unchanged for existing callers);
+# pass `package-manager: npm` (or yarn/pnpm), or `use-mise: true` to install
+# the toolchain from the repo's mise.toml (e.g. an mise-pinned Node + npm app).
+# Per-step commands auto-derive from the package manager and can be overridden
+# with the *-command inputs (escape hatch for non-standard scripts).
+
 on:
   workflow_call:
     inputs:
+      package-manager:
+        description: "Package manager: bun | npm | yarn | pnpm"
+        type: string
+        default: "bun"
+      use-mise:
+        description: "Install the toolchain via mise (reads the repo's mise.toml — Node, and Bun if pinned) instead of setup-bun/setup-node. Overrides bun-version/node-version."
+        type: boolean
+        default: false
       bun-version:
-        description: "Bun version"
+        description: "Bun version (only when package-manager is bun and use-mise is false)"
         type: string
         default: "latest"
+      node-version:
+        description: "Node version (only when package-manager is npm/yarn/pnpm and use-mise is false)"
+        type: string
+        default: "lts/*"
       working-directory:
         description: "Directory containing app.json / app.config.ts"
         type: string
@@ -15,18 +35,34 @@ on:
         description: "Runner label(s) as a JSON array string (parsed with fromJSON). Pass '[\"self-hosted\", \"linux\", \"x64\"]' to use the self-hosted pool."
         type: string
         default: '["ubuntu-latest"]'
+      install-command:
+        description: "Override the install command (empty = derive from package-manager)"
+        type: string
+        default: ""
       run-lint:
-        description: "Run lint script"
+        description: "Run lint"
         type: boolean
         default: true
+      lint-command:
+        description: "Override the lint command (empty = `<pm> run lint`)"
+        type: string
+        default: ""
       run-typecheck:
-        description: "Run tsc --noEmit"
+        description: "Run typecheck"
         type: boolean
         default: true
+      typecheck-command:
+        description: "Override the typecheck command (empty = `<pm-exec> tsc --noEmit`)"
+        type: string
+        default: ""
       run-tests:
-        description: "Run jest"
+        description: "Run tests"
         type: boolean
         default: true
+      test-command:
+        description: "Override the test command (empty = `bun test`, or `<pm> test` for npm/yarn/pnpm)"
+        type: string
+        default: ""
       run-eas-build:
         description: "Trigger an EAS build (requires EXPO_TOKEN secret)"
         type: boolean
@@ -57,24 +93,70 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: oven-sh/setup-bun@v2
+      - name: Resolve toolchain
+        id: tc
+        env:
+          PM: ${{ inputs.package-manager }}
+        run: |
+          set -euo pipefail
+          case "$PM" in
+            bun)  run="bun run"; exec="bunx";            install="bun install --frozen-lockfile"; test="bun test";  lock="bun.lockb" ;;
+            npm)  run="npm run"; exec="npx --no-install"; install="npm ci";                        test="npm test";  lock="package-lock.json" ;;
+            yarn) run="yarn";    exec="yarn";             install="yarn install --frozen-lockfile"; test="yarn test"; lock="yarn.lock" ;;
+            pnpm) run="pnpm run"; exec="pnpm exec";       install="pnpm install --frozen-lockfile"; test="pnpm test"; lock="pnpm-lock.yaml" ;;
+            *) echo "::error::unsupported package-manager: $PM (expected bun|npm|yarn|pnpm)"; exit 1 ;;
+          esac
+          {
+            echo "install=$install"
+            echo "lint=$run lint"
+            echo "typecheck=$exec tsc --noEmit"
+            echo "test=$test"
+            echo "lock=$lock"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Setup mise toolchain
+        if: inputs.use-mise
+        env:
+          MISE_YES: "1"
+        run: |
+          set -euo pipefail
+          curl -fsSL https://mise.run | sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          echo "$HOME/.local/share/mise/shims" >> "$GITHUB_PATH"
+          "$HOME/.local/bin/mise" install
+
+      - name: Setup Bun
+        if: ${{ !inputs.use-mise && inputs.package-manager == 'bun' }}
+        uses: oven-sh/setup-bun@v2
         with:
           bun-version: ${{ inputs.bun-version }}
 
+      - name: Enable corepack
+        if: ${{ !inputs.use-mise && (inputs.package-manager == 'yarn' || inputs.package-manager == 'pnpm') }}
+        run: corepack enable
+
+      - name: Setup Node
+        if: ${{ !inputs.use-mise && inputs.package-manager != 'bun' }}
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: ${{ inputs.package-manager }}
+          cache-dependency-path: ${{ inputs.working-directory }}/${{ steps.tc.outputs.lock }}
+
       - name: Install
-        run: bun install --frozen-lockfile
+        run: ${{ inputs.install-command != '' && inputs.install-command || steps.tc.outputs.install }}
 
       - name: Lint
         if: inputs.run-lint
-        run: bun run lint
+        run: ${{ inputs.lint-command != '' && inputs.lint-command || steps.tc.outputs.lint }}
 
       - name: Typecheck
         if: inputs.run-typecheck
-        run: bunx tsc --noEmit
+        run: ${{ inputs.typecheck-command != '' && inputs.typecheck-command || steps.tc.outputs.typecheck }}
 
       - name: Test
         if: inputs.run-tests
-        run: bun test
+        run: ${{ inputs.test-command != '' && inputs.test-command || steps.tc.outputs.test }}
 
       - name: Setup EAS
         if: inputs.run-eas-build
