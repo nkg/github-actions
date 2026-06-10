@@ -13,6 +13,24 @@ on:
       working-directory:
         type: string
         default: "."
+      goprivate:
+        description: |
+          Value for the GOPRIVATE env var, exported for every Go step (mod
+          download, vet, staticcheck, govulncheck, test, fuzz). Required for
+          private modules: it makes `go` skip the public proxy + checksum DB
+          and resolve them directly over git, so the deps-reader credential
+          helper is actually consulted. Pair with deps-reader-*. Empty (the
+          default) = public-module behaviour, unchanged for existing callers.
+        type: string
+        default: ""
+      gowork-off:
+        description: |
+          Set GOWORK=off for every Go step so a parent go.work (a workspace
+          `replace` pointing a dependency at a local working tree) can't mask
+          a stale go.mod pin — the module resolves exactly as go.mod declares,
+          matching a fresh single-module CI checkout. Off by default.
+        type: boolean
+        default: false
       deps-reader-client-id:
         description: |
           GitHub App client ID for private-module access. When set, a scoped
@@ -41,6 +59,23 @@ on:
         description: "Run honnef.co/go/tools/cmd/staticcheck (slower; off by default)"
         type: boolean
         default: false
+      run-golangci-lint:
+        description: |
+          Run golangci-lint. Off by default — gofmt + vet cover the basics
+          for callers without a `.golangci.yml`. When on, the binary is
+          installed at golangci-lint-version and `golangci-lint run ./...`
+          runs against the (already-downloaded) module cache, so private-deps
+          callers must wire deps-reader-* + goprivate as usual.
+        type: boolean
+        default: false
+      golangci-lint-version:
+        description: |
+          golangci-lint version WITHOUT the leading 'v' (e.g. '2.11.4'),
+          matching a mise/.tool-versions pin. Empty installs the latest
+          release. A v2-format `.golangci.yml` (version: "2") requires
+          golangci-lint >= 2.
+        type: string
+        default: ""
       run-tests:
         type: boolean
         default: true
@@ -49,7 +84,15 @@ on:
         type: string
         default: "-race -coverprofile=coverage.out -covermode=atomic ./..."
       run-govulncheck:
-        description: "Run golang.org/x/vuln/cmd/govulncheck"
+        description: "Run golang.org/x/vuln/cmd/govulncheck (blocking — findings fail the job)"
+        type: boolean
+        default: false
+      govulncheck-soft:
+        description: |
+          Run govulncheck but don't fail the build on findings
+          (continue-on-error). Surfaces CVEs without gating CI while an alert
+          backlog is drained. Independent of run-govulncheck; setting either
+          runs the step, and soft mode wins when both are set.
         type: boolean
         default: false
       upload-coverage:
@@ -101,6 +144,13 @@ on:
 jobs:
   ci:
     runs-on: ${{ fromJSON(inputs.runs-on) }}
+    # Exported to every Go step. Empty string is equivalent to unset (no
+    # private patterns), so this is a no-op for public-only callers.
+    env:
+      GOPRIVATE: ${{ inputs.goprivate }}
+      # '' = unset (Go auto-detects go.work); 'off' forces single-module
+      # resolution so a parent workspace replace can't mask a stale go.mod pin.
+      GOWORK: ${{ inputs.gowork-off && 'off' || '' }}
     defaults:
       run:
         working-directory: ${{ inputs.working-directory }}
@@ -149,8 +199,33 @@ jobs:
           go install honnef.co/go/tools/cmd/staticcheck@latest
           "$(go env GOPATH)/bin/staticcheck" ./...
 
+      - name: golangci-lint
+        if: inputs.run-golangci-lint
+        # Install via the official script (pinned by version) rather than
+        # golangci-lint-action so the version tracks the consumer's mise pin
+        # exactly and isn't coupled to the action's golangci-lint v1/v2
+        # support matrix. Runs after `go mod download` so the module cache is
+        # populated — golangci-lint loads packages from it, no network.
+        env:
+          VERSION: ${{ inputs.golangci-lint-version }}
+        run: |
+          set -euo pipefail
+          bindir="$(go env GOPATH)/bin"
+          if [ -n "$VERSION" ]; then
+            curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh \
+              | sh -s -- -b "$bindir" "v${VERSION}"
+          else
+            curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh \
+              | sh -s -- -b "$bindir"
+          fi
+          "$bindir/golangci-lint" version
+          "$bindir/golangci-lint" run ./...
+
       - name: govulncheck
-        if: inputs.run-govulncheck
+        if: inputs.run-govulncheck || inputs.govulncheck-soft
+        # Soft mode reports CVEs without gating the build. continue-on-error
+        # accepts the boolean input directly; false keeps the step blocking.
+        continue-on-error: ${{ inputs.govulncheck-soft }}
         run: |
           go install golang.org/x/vuln/cmd/govulncheck@latest
           "$(go env GOPATH)/bin/govulncheck" ./...

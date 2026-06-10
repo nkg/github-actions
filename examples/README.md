@@ -166,12 +166,16 @@ jobs:
     uses: nkg/github-actions/.github/workflows/go.yml@v2
     with:
       go-version: "1.26"
+      # goprivate is required for private modules — it makes `go` resolve them
+      # over git (where the minted token applies) instead of the public proxy.
+      goprivate: github.com/HordiaLabs/*
       deps-reader-client-id: ${{ vars.DEPS_READER_CLIENT_ID }}
       deps-reader-repositories: scraper-core
       run-fuzz: true
       fuzz-target: FuzzExtract
       fuzz-time: 30s
       fuzz-package: ./internal/...
+      # govulncheck-soft: true   # report CVEs without failing the build
     secrets:
       DEPS_READER_PRIVATE_KEY: ${{ secrets.DEPS_READER_PRIVATE_KEY }}
 ```
