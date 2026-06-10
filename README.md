@@ -138,7 +138,7 @@ steps:
 | `node-bun.yml`        | Bun-based Node/TS: install, lint, typecheck, test, build         |
 | `turbo.yml`           | Bun + Turborepo monorepo (cache, tasks, optional filters)        |
 | `elixir.yml`          | Mix: deps, format check, credo, test; opt-in dialyzer/sobelow/audits |
-| `go.yml`              | Go: gofmt, vet, optional staticcheck/govulncheck, test+coverage  |
+| `go.yml`              | Go: gofmt, vet, optional staticcheck/govulncheck/fuzz, test+coverage, optional private-deps |
 | `expo.yml`            | Expo/RN: install, lint, typecheck, optional EAS build            |
 | `opentofu.yml`        | OpenTofu: fmt, init, validate, plan (apply gated by env)         |
 | `ansible.yml`         | ansible-lint + syntax check                                      |

@@ -5,14 +5,27 @@ on:
     inputs:
       go-version:
         description: |
-          Go version (e.g. '1.23'). If you manage Go via mise, call
-          nkg/github-actions/.github/actions/setup-mise@v1 + `mise install`
-          in your stub before this workflow.
+          Go version (e.g. '1.23'). To pin via mise instead, set it in
+          .mise.toml and pass that version here — this workflow can't run a
+          setup-mise pre-step on the consumer's behalf.
         type: string
         default: "1.23"
       working-directory:
         type: string
         default: "."
+      deps-reader-client-id:
+        description: |
+          GitHub App client ID for private-module access. When set, a scoped
+          installation token is minted (via setup-deps-reader) and git's
+          credential helper is wired before `go mod download`, so GOPRIVATE
+          modules behind private repos resolve. Pair with deps-reader-repositories
+          and the DEPS_READER_PRIVATE_KEY secret. Empty = no private-deps step.
+        type: string
+        default: ""
+      deps-reader-repositories:
+        description: "Comma-separated repo names (no owner) the token is scoped to. Required when deps-reader-client-id is set."
+        type: string
+        default: ""
       runs-on:
         description: "Runner label(s) as a JSON array string (parsed with fromJSON). Pass '[\"self-hosted\", \"linux\", \"x64\"]' to use the self-hosted pool."
         type: string
@@ -42,6 +55,26 @@ on:
       upload-coverage:
         type: boolean
         default: true
+      run-fuzz:
+        description: "Run a short `go test -fuzz` smoke pass after the test step (catches panics on each PR; corpus additions are discarded)"
+        type: boolean
+        default: false
+      fuzz-target:
+        description: "Fuzz target name, anchored as ^NAME$ (e.g. 'FuzzExtract')"
+        type: string
+        default: "Fuzz"
+      fuzz-time:
+        description: "Go duration the fuzzer runs for (e.g. '30s')"
+        type: string
+        default: "30s"
+      fuzz-package:
+        description: "Package pattern to fuzz"
+        type: string
+        default: "./..."
+    secrets:
+      DEPS_READER_PRIVATE_KEY:
+        description: "Private key for the deps-reader GitHub App (required when deps-reader-client-id is set)"
+        required: false
 
 jobs:
   ci:
@@ -51,6 +84,19 @@ jobs:
         working-directory: ${{ inputs.working-directory }}
     steps:
       - uses: actions/checkout@v6
+
+      # Private-deps access (opt-in). Referenced by full path + floating major
+      # tag because a relative `./.github/actions/...` inside a reusable would
+      # resolve against the *consumer's* checkout, not this repo. The composite
+      # configures git's global credential helper, so it works regardless of
+      # which repo is checked out.
+      - name: Configure private-deps access
+        if: inputs.deps-reader-client-id != ''
+        uses: nkg/github-actions/.github/actions/setup-deps-reader@v2
+        with:
+          app-client-id: ${{ inputs.deps-reader-client-id }}
+          app-private-key: ${{ secrets.DEPS_READER_PRIVATE_KEY }}
+          repositories: ${{ inputs.deps-reader-repositories }}
 
       - name: Set up Go
         uses: actions/setup-go@v6
@@ -94,6 +140,14 @@ jobs:
         run: |
           # shellcheck disable=SC2086
           go test $ARGS
+
+      - name: Fuzz
+        if: inputs.run-fuzz
+        env:
+          TARGET: ${{ inputs.fuzz-target }}
+          FUZZTIME: ${{ inputs.fuzz-time }}
+          PKG: ${{ inputs.fuzz-package }}
+        run: go test -run='^$' -fuzz="^${TARGET}$" -fuzztime="$FUZZTIME" "$PKG"
 
       - name: Upload coverage
         if: inputs.run-tests && inputs.upload-coverage

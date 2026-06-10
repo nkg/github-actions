@@ -6,6 +6,27 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ## [Unreleased]
 
+### Added
+
+- `go.yml` — optional private-deps access. Set `deps-reader-client-id` +
+  `deps-reader-repositories` (and pass the `DEPS_READER_PRIVATE_KEY` secret)
+  and the workflow mints a scoped GitHub App token via `setup-deps-reader`
+  and wires git's credential helper before `go mod download`, so GOPRIVATE
+  modules behind private repos resolve. Empty `deps-reader-client-id` keeps
+  the existing public-only behaviour — additive, no change for current callers.
+- `go.yml` — optional `go test -fuzz` smoke pass: `run-fuzz` (default false)
+  with `fuzz-target` (anchored `^NAME$`), `fuzz-time` (default `30s`), and
+  `fuzz-package` (default `./...`). Runs after the test step; corpus
+  additions are discarded.
+- `docker-build.yml` — `build-secrets` input, forwarded to BuildKit as
+  `--mount=type=secret` id=value pairs. Lets a Dockerfile consume a
+  private-deps token (e.g. `github_token`) minted in the caller without
+  baking it into image layers. Empty default — no change for current callers.
+
+  Both additions generalise the hand-rolled pattern in
+  HordiaLabs/extractor-jsonpath (private `scraper-core` module + a 30s
+  FuzzExtract smoke pass), so that repo's CI can migrate onto the reusables.
+
 ## [2.4.1] - 2026-06-10
 
 ### Changed

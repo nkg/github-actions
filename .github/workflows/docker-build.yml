@@ -35,6 +35,14 @@ on:
         description: "Newline-separated KEY=VALUE build args"
         type: string
         default: ""
+      build-secrets:
+        description: |
+          Newline-separated id=value pairs forwarded to BuildKit as
+          --mount=type=secret. Use for private-deps tokens consumed inside the
+          Dockerfile, e.g. a github_token minted via setup-deps-reader/setup-token
+          in the caller. Build secrets are not persisted in image layers.
+        type: string
+        default: ""
       run-trivy-scan:
         description: "Scan the built image with Trivy after push. Requires push: true."
         type: boolean
@@ -114,6 +122,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: ${{ inputs.build-args }}
+          secrets: ${{ inputs.build-secrets }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
