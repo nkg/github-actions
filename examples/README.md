@@ -19,7 +19,12 @@ jobs:
     secrets: inherit
 ```
 
-## Node (Bun) monorepo package
+## Node monorepo package
+
+Defaults to Bun. Pass `package-manager: npm` (or `yarn`/`pnpm`), or
+`use-mise: true` to install the toolchain from your `mise.toml`. Per-step
+commands auto-derive from the package manager — override any with the
+`*-command` inputs.
 
 ```yaml
 name: CI
@@ -29,6 +34,8 @@ jobs:
     uses: nkg/github-actions/.github/workflows/node-bun.yml@v2
     with:
       working-directory: apps/web
+      # package-manager: npm      # bun (default) | npm | yarn | pnpm
+      # use-mise: true            # install Node/Bun from mise.toml instead
 ```
 
 ## Playwright integration tests
@@ -56,6 +63,9 @@ jobs:
 
 ## Expo / React Native
 
+Defaults to Bun (`bun install` / `bun test`). install + lint + typecheck +
+tests run by default; the EAS build is opt-in.
+
 ```yaml
 name: CI
 on: [push, pull_request]
@@ -64,12 +74,28 @@ jobs:
     uses: nkg/github-actions/.github/workflows/expo.yml@v2
     with:
       bun-version: "1.1"
-    # install + lint + typecheck + tests run by default. Opt into an EAS
-    # build (off by default; needs EXPO_TOKEN):
+    # Opt into an EAS build (off by default; needs EXPO_TOKEN):
     #   run-eas-build: true
     #   eas-platform: android   # ios | android | all
     #   eas-profile: preview
     # secrets: inherit
+```
+
+For an **npm + mise-pinned Node** Expo app (e.g. one whose tests are a
+`node:test`/`tsx` runner rather than `bun test`), select the package manager
+and install the toolchain from `mise.toml`, then point the `*-command` inputs
+at the repo's own scripts:
+
+```yaml
+jobs:
+  app:
+    uses: nkg/github-actions/.github/workflows/expo.yml@v2
+    with:
+      package-manager: npm
+      use-mise: true                       # Node comes from mise.toml
+      typecheck-command: "npm run typecheck"
+      test-command: "npm test"             # node:test runner, not bun test
+      runs-on: '["self-hosted", "linux", "x64"]'
 ```
 
 ## Elixir/Phoenix with matrix
