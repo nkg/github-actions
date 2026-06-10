@@ -372,7 +372,7 @@ jobs:
 
 ### Claude code review on every PR
 
-Note: `claude-code-action@v1` self-validates that the workflow file on
+Note: `claude-code-action@v2` self-validates that the workflow file on
 the PR matches the version on the default branch. On the PR that first
 introduces this wrapper, expect one "Workflow validation failed"
 failure — it's safe to ignore (the action's own message says so) and
