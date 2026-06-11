@@ -617,6 +617,29 @@ jobs:
 
 The `if:` guard (Dependabot actor + successful run) lives inside the reusable, so the stub stays this small. Major-bump gating on this path is best-effort from the PR title: **grouped** updates can't be classified from the title and are treated as non-major. Keep majors manual where that matters, or set `auto-merge-major: true` to merge them too.
 
+### Dependabot uv lockfile
+
+When Dependabot bumps a `uv` dependency, regenerate `uv.lock` on the PR branch so the resolved graph stays in sync. The actor guard lives in the reusable; the stub just supplies the trigger and `contents: write` (Dependabot runs get a read-only token by default). Pass `directories` for a monorepo with one lockfile per subproject.
+
+```yaml
+name: Update uv lockfiles for Dependabot
+on:
+  pull_request:
+    types: [opened, synchronize]
+permissions:
+  contents: write
+jobs:
+  update-lockfile:
+    uses: nkg/github-actions/.github/workflows/dependabot-uv-lockfile.yml@v2
+    with:
+      directories: |
+        sproncy-api
+        sproncy-blend
+        sproncy-ml
+```
+
+A push made with `GITHUB_TOKEN` does not re-trigger workflows, so this keeps the lockfile correct without looping. For a single-package repo, omit `directories` (defaults to the repo root).
+
 ### Auto-revert when main CI fails
 
 For repos that can't use branch protection (private repos on the free plan). When CI on `main` fails after a merge, opens a revert PR so `main` can be restored quickly. Does **not** auto-merge — review the revert PR and either merge it (revert) or close it (fix-forward).
