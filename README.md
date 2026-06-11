@@ -139,7 +139,7 @@ steps:
 | `node-bun.yml`        | Node/TS: install, lint, typecheck, test, build (bun default; npm/yarn/pnpm/mise) |
 | `playwright-integration.yml`| Integration tests inside the Playwright image (real Chromium; bun + private-registry aware) |
 | `turbo.yml`           | Bun + Turborepo monorepo (cache, tasks, optional filters)        |
-| `elixir.yml`          | Mix: deps, format check, credo, test; opt-in dialyzer/sobelow/audits |
+| `elixir.yml`          | Mix: deps, format check, credo, test; opt-in dialyzer/sobelow/audits, private-deps, Postgres+Valkey DB tests |
 | `go.yml`              | Go: gofmt, vet, optional golangci-lint/staticcheck/govulncheck/fuzz, test+coverage, optional Postgres + private-deps |
 | `expo.yml`            | Expo/RN: install, lint, typecheck, test, optional EAS build (bun default; npm/yarn/pnpm/mise) |
 | `opentofu.yml`        | OpenTofu: fmt, init, validate, plan (apply gated by env)         |
