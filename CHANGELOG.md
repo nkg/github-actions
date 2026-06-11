@@ -6,23 +6,14 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ## [Unreleased]
 
-### Added
+### Fixed
 
-- `elixir.yml` — optional private-deps access (mirrors `go.yml`): set
-  `deps-reader-client-id` + `deps-reader-repositories` (and pass the
-  `DEPS_READER_PRIVATE_KEY` secret) and a scoped GitHub App token is minted
-  via `setup-deps-reader` with git's credential helper wired before
-  `mix deps.get`, so private hex/git deps resolve. Empty = no change for
-  current callers.
-- `elixir.yml` — optional DB-backed test job (`run-db-tests`, default false):
-  runs `mix test` in a separate job with parameterized Postgres
-  (`postgres-image`/`-user`/`-password`/`-db`) + Valkey (`valkey-image`)
-  service containers, optional `mix ecto.create && ecto.migrate`
-  (`run-ecto-setup`), and a derived `DATABASE_URL`/`VALKEY_URL` (override via
-  `database-url`). When enabled, the main job's `mix test` step is skipped so
-  the suite isn't run twice. Unblocks the DB-backed Elixir services
-  (scraper-control, elixir_web_app, reddit_streamer, NamingThingsIsHardAPI)
-  that previously had to hand-roll their CI for service containers.
+- `lint-workflows.yml` — install yamllint via `uv` instead of
+  `actions/setup-python@v6` + `pip`. setup-python can't provision Python on
+  newer runners (Debian 13 self-hosted: "version '3.12' ... not found"), which
+  failed the yamllint job for self-hosted consumers; uv is self-contained.
+  Behaviour-preserving — still runs `yamllint <paths>` (honouring a consumer
+  `.yamllint` config). Surfaced by HordiaLabs/NamingThingsIsHardExpoApp CI.
 
 ## [2.8.0] - 2026-06-10
 
