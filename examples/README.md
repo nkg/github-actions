@@ -115,6 +115,29 @@ jobs:
       elixir-version: ${{ matrix.elixir }}
 ```
 
+Phoenix app with Ecto tests (Postgres + Valkey services) and a private hex/git
+dep — the DB test job runs `mix test` against the service containers; the main
+job covers format/credo/dialyzer:
+
+```yaml
+name: CI
+on: [push, pull_request]
+jobs:
+  ci:
+    uses: nkg/github-actions/.github/workflows/elixir.yml@v2
+    with:
+      elixir-version: "1.18"
+      otp-version: "27"
+      run-dialyzer: true
+      run-db-tests: true            # spins up Postgres + Valkey, runs mix test there
+      postgres-image: "postgres:16-alpine"
+      # private scraper-core dep:
+      deps-reader-client-id: ${{ vars.DEPS_READER_CLIENT_ID }}
+      deps-reader-repositories: scraper-core
+    secrets:
+      DEPS_READER_PRIVATE_KEY: ${{ secrets.DEPS_READER_PRIVATE_KEY }}
+```
+
 ## OpenTofu (per-stack)
 
 ```yaml
