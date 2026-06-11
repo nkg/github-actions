@@ -61,13 +61,20 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-      - run: pip install yamllint
-      - env:
+
+      # Install yamllint via uv. actions/setup-python can't provision Python on
+      # newer runners (e.g. Debian 13 self-hosted: "3.12 not found"); uv is
+      # self-contained. Mirrors the actionlint install step above.
+      - name: Install uv
+        run: |
+          set -euo pipefail
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Run yamllint
+        env:
           PATHS: ${{ inputs.yamllint-paths }}
         run: |
           # Word-splitting on PATHS is intentional — input is whitespace-separated.
           # shellcheck disable=SC2086
-          yamllint $PATHS
+          uvx yamllint $PATHS

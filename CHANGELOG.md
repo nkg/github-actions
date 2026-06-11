@@ -6,6 +6,15 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ## [Unreleased]
 
+### Fixed
+
+- `lint-workflows.yml` — install yamllint via `uv` instead of
+  `actions/setup-python@v6` + `pip`. setup-python can't provision Python on
+  newer runners (Debian 13 self-hosted: "version '3.12' ... not found"), which
+  failed the yamllint job for self-hosted consumers; uv is self-contained.
+  Behaviour-preserving — still runs `yamllint <paths>` (honouring a consumer
+  `.yamllint` config). Surfaced by HordiaLabs/NamingThingsIsHardExpoApp CI.
+
 ## [2.8.0] - 2026-06-10
 
 ### Added
