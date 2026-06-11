@@ -6,6 +6,17 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ## [Unreleased]
 
+### Added
+
+- `dependabot-uv-lockfile.yml` — regenerates `uv.lock` on Dependabot PRs and
+  pushes the result back onto the PR branch, keeping the resolved graph in sync
+  when a bump (especially grouped/transitive) leaves the lockfile stale. The
+  actor guard (`dependabot[bot]`) lives in the reusable; the caller stub only
+  supplies the `pull_request` trigger and `contents: write`. Multi-dir aware
+  via `directories` (newline/comma-separated), so a monorepo regenerates every
+  subproject's lockfile in one job. Generalised from sproncy-distillery's
+  `dependabot-lockfile.yml`.
+
 ## [2.9.0] - 2026-06-11
 
 ### Added

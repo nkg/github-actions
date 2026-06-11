@@ -1,0 +1,92 @@
+name: Dependabot uv lockfile
+
+# Regenerates uv.lock for Dependabot PRs and pushes the result back onto the
+# PR branch, so a bump that changes the resolved graph keeps the lockfile in
+# sync (Dependabot's `uv` ecosystem edits pyproject + uv.lock, but a grouped
+# or transitive change can still leave uv.lock stale until `uv lock` reruns).
+# Generalised from sproncy-distillery's dependabot-lockfile.yml.
+#
+# The caller stub holds the `on: pull_request` trigger and grants
+# `contents: write` (Dependabot-triggered runs get a read-only token by
+# default). The actor guard lives here so the stub stays minimal. Note: a push
+# made with GITHUB_TOKEN does not itself re-trigger workflows, so pair this
+# with required checks that Dependabot's own push already started.
+# See examples/README.md.
+
+on:
+  workflow_call:
+    inputs:
+      runs-on:
+        description: "Runner label(s) as a JSON array string (parsed with fromJSON). Pass '[\"self-hosted\", \"linux\", \"x64\"]' to use the self-hosted pool."
+        type: string
+        default: '["ubuntu-latest"]'
+      directories:
+        description: "Newline- or comma-separated directories that each contain a uv.lock to regenerate. Default: repo root."
+        type: string
+        default: "."
+      uv-version:
+        description: "uv version (empty = latest)"
+        type: string
+        default: ""
+      commit-message:
+        description: "Commit message for the regenerated lockfiles"
+        type: string
+        default: "chore: update uv.lock for dependabot"
+      git-user-name:
+        type: string
+        default: "github-actions[bot]"
+      git-user-email:
+        type: string
+        default: "github-actions[bot]@users.noreply.github.com"
+
+jobs:
+  update-lockfile:
+    # Only act on Dependabot's own PRs.
+    if: github.actor == 'dependabot[bot]'
+    runs-on: ${{ fromJSON(inputs.runs-on) }}
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          # Check out the PR branch (not the merge ref) so the push lands back
+          # on it. fetch-depth 0 so the later push has the full ref.
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: ${{ inputs.uv-version }}
+
+      - name: Regenerate lockfiles
+        env:
+          DIRS: ${{ inputs.directories }}
+        run: |
+          set -euo pipefail
+          # Accept comma- or newline-separated dirs; drop blank entries. Read
+          # into an array (not a while-read pipe) so a failing `uv lock`
+          # propagates under set -e instead of dying in a subshell.
+          mapfile -t DIRLIST < <(printf '%s\n' "$DIRS" | tr ',' '\n' | sed '/^[[:space:]]*$/d')
+          for dir in "${DIRLIST[@]}"; do
+            echo "Updating lockfile in $dir"
+            ( cd "$dir" && uv lock )
+          done
+
+      - name: Commit and push if changed
+        env:
+          MSG: ${{ inputs.commit-message }}
+          GIT_NAME: ${{ inputs.git-user-name }}
+          GIT_EMAIL: ${{ inputs.git-user-email }}
+        run: |
+          set -euo pipefail
+          # '*uv.lock' is a git pathspec (its * spans directories), so this
+          # matches uv.lock at any depth without shell glob expansion.
+          if git diff --quiet -- '*uv.lock'; then
+            echo "No lockfile changes"
+            exit 0
+          fi
+          git config user.name "$GIT_NAME"
+          git config user.email "$GIT_EMAIL"
+          git add -- '*uv.lock'
+          git commit -m "$MSG"
+          git push

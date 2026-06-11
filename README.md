@@ -17,6 +17,7 @@ Sproncy org. Consumed by ~20 sibling repos via `uses:` pinned tags.
 │   ├── compose-validate.yml
 │   ├── container-security.yml
 │   ├── dependabot-auto-merge.yml
+│   ├── dependabot-uv-lockfile.yml
 │   ├── docker-build.yml
 │   ├── elixir.yml
 │   ├── expo.yml
@@ -169,6 +170,7 @@ steps:
 | `claude-code-review.yml`  | Automated Claude code review on PR open/sync                   |
 | `auto-assign.yml`         | Auto-assign new issues and PRs to a user list                  |
 | `dependabot-auto-merge.yml`| Auto-merges Dependabot PRs (major bumps gated; native auto-merge or Free-plan `workflow_run` path) |
+| `dependabot-uv-lockfile.yml`| Regenerates `uv.lock` on Dependabot PRs and pushes it back (multi-dir aware) |
 | `auto-revert-on-main-failure.yml`| Opens a revert PR when main CI fails (free-plan branch-protection workaround) |
 | `stale-run-cleanup.yml`   | Cancels superseded queued runs on a shared runner pool (min-age guard, dry-run) |
 
