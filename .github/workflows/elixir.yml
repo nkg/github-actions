@@ -32,7 +32,7 @@ on:
         type: boolean
         default: false
       run-tests:
-        description: "Run mix test"
+        description: "Run mix test in the main job (skipped automatically when run-db-tests is true — the db-test job runs it instead)"
         type: boolean
         default: true
       mix-env:
@@ -56,6 +56,55 @@ on:
           known CVEs. Requires the consumer to depend on {:mix_audit, ...}.
         type: boolean
         default: false
+      deps-reader-client-id:
+        description: |
+          GitHub App client ID for private-dep access (private hex packages or
+          git deps behind private repos). When set, a scoped installation token
+          is minted (via setup-deps-reader) and git's credential helper is wired
+          before `mix deps.get`. Pair with deps-reader-repositories and the
+          DEPS_READER_PRIVATE_KEY secret. Empty = no private-deps step.
+        type: string
+        default: ""
+      deps-reader-repositories:
+        description: "Comma-separated repo names (no owner) the token is scoped to. Required when deps-reader-client-id is set."
+        type: string
+        default: ""
+      run-db-tests:
+        description: |
+          Run `mix test` in a separate job with Postgres + Valkey service
+          containers (for Ecto/cache-backed suites). When true, the main job's
+          test step is skipped to avoid running the suite twice without a DB.
+        type: boolean
+        default: false
+      postgres-image:
+        description: "Postgres service image (only used when run-db-tests)"
+        type: string
+        default: "postgres:16-alpine"
+      postgres-user:
+        type: string
+        default: "postgres"
+      postgres-password:
+        type: string
+        default: "postgres"
+      postgres-db:
+        type: string
+        default: "postgres"
+      valkey-image:
+        description: "Valkey/Redis service image (only used when run-db-tests)"
+        type: string
+        default: "valkey/valkey:8-alpine"
+      run-ecto-setup:
+        description: "Run `mix ecto.create && mix ecto.migrate` before the DB test suite"
+        type: boolean
+        default: true
+      database-url:
+        description: "Override DATABASE_URL for the db-test job. Empty = derived from the postgres-* inputs (ecto://user:pass@localhost:5432/db)."
+        type: string
+        default: ""
+    secrets:
+      DEPS_READER_PRIVATE_KEY:
+        description: "Private key for the deps-reader GitHub App (required when deps-reader-client-id is set)"
+        required: false
 
 jobs:
   ci:
@@ -67,6 +116,18 @@ jobs:
         working-directory: ${{ inputs.working-directory }}
     steps:
       - uses: actions/checkout@v6
+
+      # Private-deps access (opt-in). Full path + floating major tag: a relative
+      # ./.github/actions path inside a reusable resolves against the consumer's
+      # checkout, not this repo. The composite sets git's global credential
+      # helper, so private hex/git deps resolve in the deps.get below.
+      - name: Configure private-deps access
+        if: inputs.deps-reader-client-id != ''
+        uses: nkg/github-actions/.github/actions/setup-deps-reader@v2
+        with:
+          app-client-id: ${{ inputs.deps-reader-client-id }}
+          app-private-key: ${{ secrets.DEPS_READER_PRIVATE_KEY }}
+          repositories: ${{ inputs.deps-reader-repositories }}
 
       - uses: erlef/setup-beam@v1
         with:
@@ -105,7 +166,9 @@ jobs:
         run: mix dialyzer
 
       - name: Test
-        if: inputs.run-tests
+        # Skipped when run-db-tests is true — the db-test job runs the suite
+        # with service containers instead, so we don't run it twice DB-less.
+        if: inputs.run-tests && !inputs.run-db-tests
         run: mix test
 
       - name: hex.audit
@@ -124,3 +187,88 @@ jobs:
           mix archive.install hex sobelow --force
           # shellcheck disable=SC2086
           mix sobelow $ARGS
+
+  # Optional Ecto/cache-backed test suite with Postgres + Valkey services.
+  # Gated by run-db-tests: when the consumer doesn't opt in, this job is
+  # skipped and its service containers never start. Both services always run
+  # when enabled — a repo that needs only one just won't connect to the other.
+  test-db:
+    if: inputs.run-db-tests
+    runs-on: ${{ fromJSON(inputs.runs-on) }}
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    env:
+      MIX_ENV: ${{ inputs.mix-env }}
+      POSTGRES_USER: ${{ inputs.postgres-user }}
+      POSTGRES_PASSWORD: ${{ inputs.postgres-password }}
+      POSTGRES_DB: ${{ inputs.postgres-db }}
+      PGHOST: localhost
+      PGPORT: "5432"
+      DATABASE_URL: ${{ inputs.database-url != '' && inputs.database-url || format('ecto://{0}:{1}@localhost:5432/{2}', inputs.postgres-user, inputs.postgres-password, inputs.postgres-db) }}
+      VALKEY_URL: redis://localhost:6379
+      REDIS_URL: redis://localhost:6379
+    services:
+      postgres:
+        image: ${{ inputs.postgres-image }}
+        env:
+          POSTGRES_USER: ${{ inputs.postgres-user }}
+          POSTGRES_PASSWORD: ${{ inputs.postgres-password }}
+          POSTGRES_DB: ${{ inputs.postgres-db }}
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ${{ inputs.postgres-user }}"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      valkey:
+        image: ${{ inputs.valkey-image }}
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "valkey-cli ping || redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Configure private-deps access
+        if: inputs.deps-reader-client-id != ''
+        uses: nkg/github-actions/.github/actions/setup-deps-reader@v2
+        with:
+          app-client-id: ${{ inputs.deps-reader-client-id }}
+          app-private-key: ${{ secrets.DEPS_READER_PRIVATE_KEY }}
+          repositories: ${{ inputs.deps-reader-repositories }}
+
+      - uses: erlef/setup-beam@v1
+        with:
+          elixir-version: ${{ inputs.elixir-version }}
+          otp-version: ${{ inputs.otp-version }}
+
+      - name: Cache deps and _build
+        uses: actions/cache@v5
+        with:
+          path: |
+            ${{ inputs.working-directory }}/deps
+            ${{ inputs.working-directory }}/_build
+          key: ${{ runner.os }}-mix-${{ inputs.otp-version }}-${{ inputs.elixir-version }}-${{ hashFiles(format('{0}/mix.lock', inputs.working-directory)) }}
+          restore-keys: |
+            ${{ runner.os }}-mix-${{ inputs.otp-version }}-${{ inputs.elixir-version }}-
+
+      - name: Install dependencies
+        run: |
+          mix local.hex --force
+          mix local.rebar --force
+          mix deps.get
+
+      - name: Compile (warnings as errors)
+        run: mix compile --warnings-as-errors
+
+      - name: Ecto setup
+        if: inputs.run-ecto-setup
+        run: mix ecto.create && mix ecto.migrate
+
+      - name: Test
+        run: mix test
