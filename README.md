@@ -94,7 +94,7 @@ jobs:
   test:
     uses: nkg/github-actions/.github/workflows/python-uv.yml@v2
     with:
-      python-version: "3.12"
+      python-version: "3.14"
     secrets: inherit
 ```
 
@@ -198,6 +198,18 @@ GitHub-hosted runners.
 The input is a JSON array string parsed with `fromJSON`, so it must be
 quoted. Per-job matrix splits stay in the caller — this repo's workflows
 are single-job.
+
+## Local development
+
+Git hooks (lefthook) run the same checks as `self-test.yml` — actionlint,
+yamllint, composite-action syntax, gitleaks — before commit/push, plus a
+guard against direct pushes to `main` (bypass: `ALLOW_MAIN_PUSH=1 git push`).
+This dogfoods the pattern documented in [examples/pre-push-hook.md](examples/pre-push-hook.md).
+One-time setup per clone:
+
+```
+mise install && lefthook install
+```
 
 ## Updating actions
 

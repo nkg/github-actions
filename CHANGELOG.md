@@ -6,6 +6,17 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ## [Unreleased]
 
+### Added
+
+- Local git hooks via lefthook (`lefthook.yml` + `mise.toml`), dogfooding
+  `examples/pre-push-hook.md`: pre-commit runs gitleaks (staged), yamllint
+  and actionlint on staged files; pre-push mirrors `self-test.yml`
+  byte-for-byte (actionlint, yamllint, composite-action YAML syntax via uv,
+  full-history gitleaks) and blocks direct pushes to `main`
+  (`ALLOW_MAIN_PUSH=1` to bypass). Tool versions are pinned in `mise.toml`
+  to match the CI defaults; renovate's mise manager keeps them in step.
+  One-time setup per clone: `mise install && lefthook install`.
+
 ## [2.11.0] - 2026-06-12
 
 ### Added
