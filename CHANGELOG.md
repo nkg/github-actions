@@ -520,7 +520,13 @@ README; everything below is the actual content of this repo.
 - Bumped `actions/checkout` from `@v4` to `@v6` across all existing
   workflows for consistency with new files.
 
-[Unreleased]: https://github.com/nkg/github-actions/compare/v2.4.1...HEAD
+[Unreleased]: https://github.com/nkg/github-actions/compare/v2.10.0...HEAD
+[2.10.0]: https://github.com/nkg/github-actions/compare/v2.9.0...v2.10.0
+[2.9.0]: https://github.com/nkg/github-actions/compare/v2.8.0...v2.9.0
+[2.8.0]: https://github.com/nkg/github-actions/compare/v2.7.0...v2.8.0
+[2.7.0]: https://github.com/nkg/github-actions/compare/v2.6.0...v2.7.0
+[2.6.0]: https://github.com/nkg/github-actions/compare/v2.5.0...v2.6.0
+[2.5.0]: https://github.com/nkg/github-actions/compare/v2.4.1...v2.5.0
 [2.4.1]: https://github.com/nkg/github-actions/compare/v2.4.0...v2.4.1
 [2.4.0]: https://github.com/nkg/github-actions/compare/v2.3.0...v2.4.0
 [2.3.0]: https://github.com/nkg/github-actions/compare/v2.2.0...v2.3.0
