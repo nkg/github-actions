@@ -11,7 +11,7 @@ on:
     inputs:
       python-version:
         type: string
-        default: "3.12"
+        default: "3.14"
       working-directory:
         type: string
         default: "."

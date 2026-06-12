@@ -3,9 +3,10 @@ description: Thin wrapper over sigstore/cosign-installer so the version is pinne
 
 inputs:
   cosign-version:
-    description: "cosign release (e.g. v2.4.1). Empty = installer default."
+    description: "cosign release (e.g. v3.1.1). Must be set: cosign-installer v4 rejects an empty release."
     required: false
-    default: ""
+    # renovate: datasource=github-releases depName=sigstore/cosign
+    default: "v3.1.1"
 
 runs:
   using: composite

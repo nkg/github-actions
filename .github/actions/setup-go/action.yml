@@ -5,7 +5,7 @@ inputs:
   go-version:
     description: "Go version (e.g. '1.23')"
     required: false
-    default: "1.23"
+    default: "1.26"
   working-directory:
     description: "Project subdirectory (used for cache-dependency-path)"
     required: false

@@ -8,7 +8,7 @@ on:
           Go version (e.g. '1.23'). Ignored when use-mise is true — the
           version then comes from the consumer's mise.toml.
         type: string
-        default: "1.23"
+        default: "1.26"
       use-mise:
         description: |
           Install the toolchain via mise (reads the consumer's mise.toml)
@@ -131,7 +131,7 @@ on:
         default: false
       postgres-image:
         type: string
-        default: "postgres:16-alpine"
+        default: "postgres:18-alpine"
       postgres-user:
         type: string
         default: "postgres"

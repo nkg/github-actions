@@ -6,11 +6,11 @@ on:
       elixir-version:
         description: "Elixir version"
         type: string
-        default: "1.17"
+        default: "1.20"
       otp-version:
         description: "OTP version"
         type: string
-        default: "27"
+        default: "28"
       use-mise:
         description: |
           Install Erlang/Elixir via mise (reads the consumer's mise.toml)
@@ -85,7 +85,7 @@ on:
       postgres-image:
         description: "Postgres service image (only used when run-db-tests)"
         type: string
-        default: "postgres:16-alpine"
+        default: "postgres:18-alpine"
       postgres-user:
         type: string
         default: "postgres"
@@ -98,7 +98,7 @@ on:
       valkey-image:
         description: "Valkey/Redis service image (only used when run-db-tests)"
         type: string
-        default: "valkey/valkey:8-alpine"
+        default: "valkey/valkey:9-alpine"
       run-ecto-setup:
         description: "Run `mix ecto.create && mix ecto.migrate` before the DB test suite"
         type: boolean

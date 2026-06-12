@@ -6,7 +6,7 @@ on:
       python-version:
         description: "Python version (for ansible + ansible-lint). Ignored when use-mise is true."
         type: string
-        default: "3.12"
+        default: "3.14"
       use-mise:
         description: |
           Provision Python via mise (reads the consumer's mise.toml) instead

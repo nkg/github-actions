@@ -6,7 +6,8 @@ on:
       tofu-version:
         description: "OpenTofu version. Ignored when use-mise is true — the version then comes from the consumer's mise.toml."
         type: string
-        default: "1.8.0"
+        # renovate: datasource=github-releases depName=opentofu/opentofu
+        default: "1.12.1"
       use-mise:
         description: |
           Install OpenTofu via mise (reads the consumer's mise.toml) instead

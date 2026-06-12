@@ -44,12 +44,30 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
   `komodo-deploy.yml` gets `permissions: {}` (pure API call, no checkout) —
   the last two workflows without explicit permissions blocks.
 
+### Changed (version defaults → latest)
+
+- All tool and runtime version defaults bumped to the current latest
+  releases: Python 3.12 → 3.14 (python-uv, fastapi, scrapy, ansible,
+  molecule, toml-lint), Go 1.23 → 1.26 (go.yml + setup-go), Elixir/OTP
+  1.17/27 → 1.20/28, OpenTofu 1.8.0 → 1.12.1, actionlint 1.7.7 → 1.7.12,
+  gitleaks 8.21.2 → 8.30.1, sops v3.9.1 → v3.13.1, age v1.2.0 → v1.3.1,
+  `postgres:16-alpine` → `postgres:18-alpine`, `valkey:8` → `valkey:9`.
+  Consumers that pin versions explicitly are unaffected; consumers on
+  defaults get the newer runtimes. All bumped defaults now carry
+  `# renovate:` hints where they were missing (sops, age, cosign,
+  opentofu) so they can't silently go stale again.
+
 ### Fixed
 
 - `setup-trivy` — bump the default Trivy version 0.57.1 → 0.71.0. The
   v0.57.1 release was deleted upstream, so the download URL 404'd and the
   action was silently broken for any caller on the default. Caught by the
   new composite smoke test on its first run.
+- `setup-cosign` — default `cosign-version` is now a real pin (`v3.1.1`)
+  instead of empty. cosign-installer v4 rejects an empty `cosign-release`
+  (v3 treated it as "installer default"), which broke the composite's
+  default path; also caught by the smoke test. Passing an explicit empty
+  string is no longer supported.
 
 ### Removed
 

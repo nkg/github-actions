@@ -6,7 +6,7 @@ on:
       python-version:
         description: "Python version to use"
         type: string
-        default: "3.12"
+        default: "3.14"
       uv-version:
         description: "uv version (empty = latest)"
         type: string

@@ -13,7 +13,7 @@ on:
       actionlint-version:
         # renovate: datasource=github-releases depName=rhysd/actionlint
         type: string
-        default: "1.7.7"
+        default: "1.7.12"
       actionlint-ignore:
         description: "Newline-separated -ignore patterns. Each becomes one `-ignore PATTERN` arg."
         type: string
