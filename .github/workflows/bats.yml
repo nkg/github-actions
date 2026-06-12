@@ -48,10 +48,11 @@ jobs:
   bats:
     if: inputs.run-bats
     runs-on: ${{ fromJSON(inputs.runs-on) }}
+    timeout-minutes: 15
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
       - name: Install bats
         env:
@@ -86,10 +87,11 @@ jobs:
   shellcheck:
     if: inputs.run-shellcheck
     runs-on: ${{ fromJSON(inputs.runs-on) }}
+    timeout-minutes: 15
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
       - name: Install shellcheck
         run: |

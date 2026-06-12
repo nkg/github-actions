@@ -46,8 +46,7 @@ Sproncy org. Consumed by ~20 sibling repos via `uses:` pinned tags.
 │   ├── setup-sops/
 │   ├── setup-token/
 │   └── setup-trivy/
-├── actionlint.yaml          # declares Sproncy custom self-hosted labels
-└── dependabot.yml           # weekly bumps for this repo's own actions
+└── actionlint.yaml          # declares Sproncy custom self-hosted labels
 ```
 
 ## Runner strategy

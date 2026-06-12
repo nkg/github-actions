@@ -44,17 +44,18 @@ jobs:
     # Only act on Dependabot's own PRs.
     if: github.actor == 'dependabot[bot]'
     runs-on: ${{ fromJSON(inputs.runs-on) }}
+    timeout-minutes: 15
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           # Check out the PR branch (not the merge ref) so the push lands back
           # on it. fetch-depth 0 so the later push has the full ref.
           ref: ${{ github.head_ref }}
           fetch-depth: 0
 
-      - uses: astral-sh/setup-uv@v7
+      - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
           version: ${{ inputs.uv-version }}
 

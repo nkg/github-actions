@@ -1,0 +1,18 @@
+[project]
+name = "python-uv-fixture"
+version = "0.1.0"
+description = "Tiny project exercised by self-test's python-uv integration test"
+requires-python = ">=3.12"
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "mypy>=1.13",
+    "pytest>=8",
+    "pytest-cov>=6",
+    "ruff>=0.8",
+]
+
+[tool.uv]
+# Virtual project: install only the deps, don't build/install the fixture itself.
+package = false

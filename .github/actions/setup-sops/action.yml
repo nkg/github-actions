@@ -5,11 +5,13 @@ inputs:
   sops-version:
     description: "sops version (e.g. v3.9.1)"
     required: false
-    default: "v3.9.1"
+    # renovate: datasource=github-releases depName=getsops/sops
+    default: "v3.13.1"
   age-version:
     description: "age version (e.g. v1.2.0)"
     required: false
-    default: "v1.2.0"
+    # renovate: datasource=github-releases depName=FiloSottile/age
+    default: "v1.3.1"
   age-key:
     description: "age private key (multi-line). Written to ~/.config/sops/age/keys.txt"
     required: false

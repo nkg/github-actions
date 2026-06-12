@@ -5,3 +5,8 @@
 .vscode/
 .claude/
 node_modules/
+.venv/
+dist/
+coverage.xml
+coverage.out
+.coverage

@@ -10,7 +10,7 @@ on:
     inputs:
       python-version:
         type: string
-        default: "3.12"
+        default: "3.14"
       working-directory:
         description: "Directory containing scrapy.cfg"
         type: string
@@ -52,14 +52,15 @@ on:
 jobs:
   ci:
     runs-on: ${{ fromJSON(inputs.runs-on) }}
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: ${{ inputs.working-directory }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
           enable-cache: true
           cache-dependency-glob: ${{ inputs.working-directory }}/uv.lock

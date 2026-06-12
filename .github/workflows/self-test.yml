@@ -21,15 +21,72 @@ jobs:
 
   composite-actions-syntax:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-      - run: pip install pyyaml
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
       - name: Validate composite action metadata
         run: |
+          set -euo pipefail
           for action in .github/actions/*/action.yml; do
             echo "Checking $action"
-            python -c "import yaml; yaml.safe_load(open('$action'))"
+            uv run --no-project --with pyyaml python -c \
+              "import sys, yaml; yaml.safe_load(open(sys.argv[1]))" "$action"
           done
+
+  # Smoke-test the composite actions with this PR's code. Relative `uses:`
+  # paths work here (unlike inside the reusables) because the checkout IS
+  # this repo. setup-token / setup-deps-reader are excluded — they need a
+  # GitHub App key, which fork PRs can't see.
+  composite-actions-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - name: setup-mise
+        uses: ./.github/actions/setup-mise
+      - run: mise --version
+
+      - name: setup-trivy
+        uses: ./.github/actions/setup-trivy
+      - run: trivy --version
+
+      - name: setup-sops
+        uses: ./.github/actions/setup-sops
+      - run: sops --version && age --version
+
+      # setup-cosign verifies itself (`cosign version` is its last step).
+      - name: setup-cosign
+        uses: ./.github/actions/setup-cosign
+
+      - name: setup-go
+        uses: ./.github/actions/setup-go
+        with:
+          working-directory: tests/fixtures/go
+      - run: go version
+
+  # Integration tests: run the reusable language workflows end-to-end against
+  # tiny fixture projects. A local-path `uses:` runs the workflow from this
+  # commit. Fixtures stay on the default (non-mise) toolchain paths — the
+  # composite refs inside the reusables resolve to the released @v2 tag, so a
+  # use-mise fixture would exercise released code rather than this PR's.
+  integration-python-uv:
+    uses: ./.github/workflows/python-uv.yml
+    with:
+      runs-on: '["ubuntu-latest"]'
+      working-directory: tests/fixtures/python-uv
+      upload-coverage: false
+
+  integration-go:
+    uses: ./.github/workflows/go.yml
+    with:
+      runs-on: '["ubuntu-latest"]'
+      working-directory: tests/fixtures/go
+      upload-coverage: false
+
+  integration-node-bun:
+    uses: ./.github/workflows/node-bun.yml
+    with:
+      runs-on: '["ubuntu-latest"]'
+      working-directory: tests/fixtures/node-bun

@@ -6,11 +6,17 @@ on:
       elixir-version:
         description: "Elixir version"
         type: string
-        default: "1.17"
+        default: "1.20"
       otp-version:
         description: "OTP version"
         type: string
-        default: "27"
+        default: "28"
+      use-mise:
+        description: |
+          Install Erlang/Elixir via mise (reads the consumer's mise.toml)
+          instead of erlef/setup-beam. Overrides elixir-version/otp-version.
+        type: boolean
+        default: false
       working-directory:
         description: "Directory containing mix.exs"
         type: string
@@ -79,7 +85,7 @@ on:
       postgres-image:
         description: "Postgres service image (only used when run-db-tests)"
         type: string
-        default: "postgres:16-alpine"
+        default: "postgres:18-alpine"
       postgres-user:
         type: string
         default: "postgres"
@@ -92,7 +98,7 @@ on:
       valkey-image:
         description: "Valkey/Redis service image (only used when run-db-tests)"
         type: string
-        default: "valkey/valkey:8-alpine"
+        default: "valkey/valkey:9-alpine"
       run-ecto-setup:
         description: "Run `mix ecto.create && mix ecto.migrate` before the DB test suite"
         type: boolean
@@ -109,13 +115,14 @@ on:
 jobs:
   ci:
     runs-on: ${{ fromJSON(inputs.runs-on) }}
+    timeout-minutes: 30
     env:
       MIX_ENV: ${{ inputs.mix-env }}
     defaults:
       run:
         working-directory: ${{ inputs.working-directory }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
       # Private-deps access (opt-in). Full path + floating major tag: a relative
       # ./.github/actions path inside a reusable resolves against the consumer's
@@ -129,13 +136,23 @@ jobs:
           app-private-key: ${{ secrets.DEPS_READER_PRIVATE_KEY }}
           repositories: ${{ inputs.deps-reader-repositories }}
 
-      - uses: erlef/setup-beam@v1
+      # Same full-path pattern as setup-deps-reader above: installs mise,
+      # caches the tool dir, and runs `mise install` against the consumer's
+      # mise.toml (which pins erlang + elixir there).
+      - name: Setup mise toolchain
+        if: inputs.use-mise
+        uses: nkg/github-actions/.github/actions/setup-mise@v2
+        with:
+          working-directory: ${{ inputs.working-directory }}
+
+      - uses: erlef/setup-beam@fc68ffb90438ef2936bbb3251622353b3dcb2f93 # v1.24.0
+        if: ${{ !inputs.use-mise }}
         with:
           elixir-version: ${{ inputs.elixir-version }}
           otp-version: ${{ inputs.otp-version }}
 
       - name: Cache deps and _build
-        uses: actions/cache@v5
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: |
             ${{ inputs.working-directory }}/deps
@@ -195,6 +212,7 @@ jobs:
   test-db:
     if: inputs.run-db-tests
     runs-on: ${{ fromJSON(inputs.runs-on) }}
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: ${{ inputs.working-directory }}
@@ -232,7 +250,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
       - name: Configure private-deps access
         if: inputs.deps-reader-client-id != ''
@@ -242,13 +260,20 @@ jobs:
           app-private-key: ${{ secrets.DEPS_READER_PRIVATE_KEY }}
           repositories: ${{ inputs.deps-reader-repositories }}
 
-      - uses: erlef/setup-beam@v1
+      - name: Setup mise toolchain
+        if: inputs.use-mise
+        uses: nkg/github-actions/.github/actions/setup-mise@v2
+        with:
+          working-directory: ${{ inputs.working-directory }}
+
+      - uses: erlef/setup-beam@fc68ffb90438ef2936bbb3251622353b3dcb2f93 # v1.24.0
+        if: ${{ !inputs.use-mise }}
         with:
           elixir-version: ${{ inputs.elixir-version }}
           otp-version: ${{ inputs.otp-version }}
 
       - name: Cache deps and _build
-        uses: actions/cache@v5
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: |
             ${{ inputs.working-directory }}/deps

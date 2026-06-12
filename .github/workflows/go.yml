@@ -5,11 +5,16 @@ on:
     inputs:
       go-version:
         description: |
-          Go version (e.g. '1.23'). To pin via mise instead, set it in
-          .mise.toml and pass that version here — this workflow can't run a
-          setup-mise pre-step on the consumer's behalf.
+          Go version (e.g. '1.23'). Ignored when use-mise is true — the
+          version then comes from the consumer's mise.toml.
         type: string
-        default: "1.23"
+        default: "1.26"
+      use-mise:
+        description: |
+          Install the toolchain via mise (reads the consumer's mise.toml)
+          instead of actions/setup-go. Overrides go-version.
+        type: boolean
+        default: false
       working-directory:
         type: string
         default: "."
@@ -126,7 +131,7 @@ on:
         default: false
       postgres-image:
         type: string
-        default: "postgres:16-alpine"
+        default: "postgres:18-alpine"
       postgres-user:
         type: string
         default: "postgres"
@@ -144,6 +149,7 @@ on:
 jobs:
   ci:
     runs-on: ${{ fromJSON(inputs.runs-on) }}
+    timeout-minutes: 30
     # Exported to every Go step. Empty string is equivalent to unset (no
     # private patterns), so this is a no-op for public-only callers.
     env:
@@ -155,7 +161,7 @@ jobs:
       run:
         working-directory: ${{ inputs.working-directory }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
       # Private-deps access (opt-in). Referenced by full path + floating major
       # tag because a relative `./.github/actions/...` inside a reusable would
@@ -170,11 +176,34 @@ jobs:
           app-private-key: ${{ secrets.DEPS_READER_PRIVATE_KEY }}
           repositories: ${{ inputs.deps-reader-repositories }}
 
+      # Same full-path pattern as setup-deps-reader above: the composite
+      # installs mise, caches the tool dir, and runs `mise install` against
+      # the consumer's mise.toml.
+      - name: Setup mise toolchain
+        if: inputs.use-mise
+        uses: nkg/github-actions/.github/actions/setup-mise@v2
+        with:
+          working-directory: ${{ inputs.working-directory }}
+
       - name: Set up Go
-        uses: actions/setup-go@v6
+        if: ${{ !inputs.use-mise }}
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
           go-version: ${{ inputs.go-version }}
           cache-dependency-path: ${{ inputs.working-directory }}/go.sum
+
+      # setup-go caches the module/build dirs itself; the mise path has no
+      # such action, so cache them explicitly (keyed on go.sum).
+      - name: Cache Go modules (mise path)
+        if: inputs.use-mise
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: mise-go-${{ runner.os }}-${{ hashFiles(format('{0}/go.sum', inputs.working-directory)) }}
+          restore-keys: |
+            mise-go-${{ runner.os }}-
 
       - name: Download modules
         run: go mod download
@@ -284,7 +313,7 @@ jobs:
 
       - name: Upload coverage
         if: inputs.run-tests && inputs.upload-coverage
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: go-coverage
           path: ${{ inputs.working-directory }}/coverage.out

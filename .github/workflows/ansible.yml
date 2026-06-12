@@ -4,9 +4,16 @@ on:
   workflow_call:
     inputs:
       python-version:
-        description: "Python version (for ansible + ansible-lint)"
+        description: "Python version (for ansible + ansible-lint). Ignored when use-mise is true."
         type: string
-        default: "3.12"
+        default: "3.14"
+      use-mise:
+        description: |
+          Provision Python via mise (reads the consumer's mise.toml) instead
+          of uv's managed interpreter. Overrides python-version. ansible +
+          ansible-lint still run in uvx environments on that interpreter.
+        type: boolean
+        default: false
       working-directory:
         description: "Repo subdirectory containing playbooks"
         type: string
@@ -35,34 +42,64 @@ on:
 jobs:
   ci:
     runs-on: ${{ fromJSON(inputs.runs-on) }}
+    timeout-minutes: 15
+    env:
+      # Python request passed to every uvx call. Empty on the mise path so uv
+      # discovers the mise-provisioned interpreter from PATH instead of
+      # downloading a managed one.
+      PYVER: ${{ !inputs.use-mise && inputs.python-version || '' }}
     defaults:
       run:
         working-directory: ${{ inputs.working-directory }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
-      - uses: actions/setup-python@v6
+      # Full path + floating major tag: a relative ./.github/actions path
+      # inside a reusable resolves against the consumer's checkout, not this
+      # repo. Installs mise, caches the tool dir, runs `mise install`.
+      - name: Setup mise toolchain
+        if: inputs.use-mise
+        uses: nkg/github-actions/.github/actions/setup-mise@v2
         with:
-          python-version: ${{ inputs.python-version }}
-          cache: pip
+          working-directory: ${{ inputs.working-directory }}
 
-      - name: Install ansible + ansible-lint
-        run: pip install ansible ansible-lint
+      # uv provisions Python and runs ansible/ansible-lint in ephemeral uvx
+      # environments — no setup-python (which can't provision Python on newer
+      # self-hosted runners), no global pip.
+      - name: Install uv
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
+        with:
+          enable-cache: true
 
       - name: Install collections
         if: inputs.requirements-file != ''
-        run: ansible-galaxy install -r ${{ inputs.requirements-file }}
+        env:
+          REQS: ${{ inputs.requirements-file }}
+        run: |
+          set -euo pipefail
+          py=()
+          if [ -n "$PYVER" ]; then py=(--python "$PYVER"); fi
+          uvx "${py[@]}" --from ansible ansible-galaxy install -r "$REQS"
 
       - name: ansible-lint
         if: inputs.run-lint
-        run: ansible-lint
+        run: |
+          set -euo pipefail
+          py=()
+          if [ -n "$PYVER" ]; then py=(--python "$PYVER"); fi
+          uvx "${py[@]}" --with ansible ansible-lint
 
       - name: Syntax check
         if: inputs.run-syntax-check && inputs.playbooks != ''
+        env:
+          PLAYBOOKS: ${{ inputs.playbooks }}
         run: |
+          set -euo pipefail
+          py=()
+          if [ -n "$PYVER" ]; then py=(--python "$PYVER"); fi
           while IFS= read -r playbook; do
             [ -z "$playbook" ] && continue
             echo "::group::syntax-check $playbook"
-            ansible-playbook --syntax-check "$playbook"
+            uvx "${py[@]}" --from ansible ansible-playbook --syntax-check "$playbook"
             echo "::endgroup::"
-          done <<< "${{ inputs.playbooks }}"
+          done <<< "$PLAYBOOKS"

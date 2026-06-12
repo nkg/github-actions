@@ -13,7 +13,7 @@ on:
         default: '["ubuntu-latest"]'
       python-version:
         type: string
-        default: "3.12"
+        default: "3.14"
       roles:
         description: "Newline- or comma-separated list of role names under roles-dir"
         type: string
@@ -43,6 +43,7 @@ on:
 jobs:
   prepare-matrix:
     runs-on: ${{ fromJSON(inputs.runs-on) }}
+    timeout-minutes: 5
     outputs:
       roles: ${{ steps.parse.outputs.roles }}
     steps:
@@ -72,28 +73,31 @@ jobs:
       matrix:
         role: ${{ fromJson(needs.prepare-matrix.outputs.roles) }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
-      - uses: actions/setup-python@v6
+      # uv provisions Python and runs molecule in an ephemeral uvx
+      # environment — no setup-python (which can't provision Python on newer
+      # self-hosted runners), no global pip.
+      - name: Install uv
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
-          python-version: ${{ inputs.python-version }}
-          cache: pip
-
-      - name: Install ansible-core + molecule
-        env:
-          DRIVER: ${{ inputs.molecule-driver }}
-        run: pip install ansible-core molecule "molecule-plugins[$DRIVER]"
+          enable-cache: true
 
       - name: Install galaxy collections
         env:
           REQS: ${{ inputs.requirements-file }}
+          PYVER: ${{ inputs.python-version }}
         run: |
           if [ -n "$REQS" ] && [ -f "$REQS" ]; then
-            ansible-galaxy install -r "$REQS"
+            uvx --python "$PYVER" --from ansible-core ansible-galaxy install -r "$REQS"
           else
             echo "no requirements file at '$REQS' — skipping"
           fi
 
       - name: Molecule test (${{ matrix.role }})
         working-directory: ${{ inputs.roles-dir }}/${{ matrix.role }}
-        run: molecule test -s ${{ inputs.molecule-scenario }}
+        env:
+          DRIVER: ${{ inputs.molecule-driver }}
+          PYVER: ${{ inputs.python-version }}
+          SCENARIO: ${{ inputs.molecule-scenario }}
+        run: uvx --python "$PYVER" --with ansible-core --with "molecule-plugins[$DRIVER]" molecule test -s "$SCENARIO"

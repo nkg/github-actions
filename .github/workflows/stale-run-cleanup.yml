@@ -36,6 +36,7 @@ on:
 jobs:
   cleanup:
     runs-on: ${{ fromJSON(inputs.runs-on) }}
+    timeout-minutes: 10
     permissions:
       actions: write
     steps:

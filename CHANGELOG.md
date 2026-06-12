@@ -6,6 +6,92 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ## [Unreleased]
 
+### Added
+
+- `go.yml`, `elixir.yml`, `opentofu.yml`, `ansible.yml` — new `use-mise` input
+  (default false): install the toolchain via the `setup-mise` composite from
+  the consumer's `mise.toml` instead of `actions/setup-go` /
+  `erlef/setup-beam` / `opentofu/setup-opentofu` / `actions/setup-python`.
+  The `*-version` inputs are ignored on the mise path. go/ansible mise paths
+  cache the module/pip dirs explicitly (the setup actions normally do this);
+  opentofu's mise path writes `TF_API_TOKEN` to `~/.tofurc`
+  (app.terraform.io) since `setup-opentofu` isn't there to do it. Brings every
+  language workflow in line with the org's mise-first runtime policy.
+- `setup-mise` — new `working-directory` input (default `.`) so `mise install`
+  reads the mise.toml of a subdirectory project, matching the reusable
+  workflows' `working-directory` semantics.
+- Self-test — functional CI on top of the existing lint-only checks:
+  a `composite-actions-smoke` job runs setup-mise/-trivy/-sops/-cosign/-go
+  from the PR's code and asserts each tool answers `--version`, and three
+  integration jobs run `python-uv.yml`, `go.yml` and `node-bun.yml`
+  end-to-end against tiny fixture projects under `tests/fixtures/` via
+  local-path `uses:` (executes the workflows from the PR's commit).
+
+### Changed (hardening)
+
+- All third-party actions (88 references, 23 actions) are now pinned to the
+  full commit SHA of their **latest** release, with the version as a trailing
+  comment (`uses: actions/checkout@df4cb1c0… # v6.0.3`). Renovate continues
+  to manage them (digest + comment updates). Self-references
+  (`nkg/github-actions/...@v2`) stay on the floating tag. Two majors were
+  bumped to reach latest: `astral-sh/setup-uv` v7 → v8.2.0 and
+  `sigstore/cosign-installer` v3 → v4.1.2 (inputs used by this repo are
+  unchanged in both).
+- Every job now sets `timeout-minutes` (5–45 depending on job class:
+  lint ~10, language CI 30, docker-build 45) so a hung step can't occupy a
+  runner indefinitely — previously ~16 workflows had no cap.
+- `compose-validate.yml` gets an explicit `permissions: contents: read`;
+  `komodo-deploy.yml` gets `permissions: {}` (pure API call, no checkout) —
+  the last two workflows without explicit permissions blocks.
+
+### Changed (version defaults → latest)
+
+- All tool and runtime version defaults bumped to the current latest
+  releases: Python 3.12 → 3.14 (python-uv, fastapi, scrapy, ansible,
+  molecule, toml-lint), Go 1.23 → 1.26 (go.yml + setup-go), Elixir/OTP
+  1.17/27 → 1.20/28, OpenTofu 1.8.0 → 1.12.1, actionlint 1.7.7 → 1.7.12,
+  gitleaks 8.21.2 → 8.30.1, sops v3.9.1 → v3.13.1, age v1.2.0 → v1.3.1,
+  `postgres:16-alpine` → `postgres:18-alpine`, `valkey:8` → `valkey:9`.
+  Consumers that pin versions explicitly are unaffected; consumers on
+  defaults get the newer runtimes. All bumped defaults now carry
+  `# renovate:` hints where they were missing (sops, age, cosign,
+  opentofu) so they can't silently go stale again.
+
+### Fixed
+
+- `setup-trivy` — bump the default Trivy version 0.57.1 → 0.71.0. The
+  v0.57.1 release was deleted upstream, so the download URL 404'd and the
+  action was silently broken for any caller on the default. Caught by the
+  new composite smoke test on its first run.
+- `setup-cosign` — default `cosign-version` is now a real pin (`v3.1.1`)
+  instead of empty. cosign-installer v4 rejects an empty `cosign-release`
+  (v3 treated it as "installer default"), which broke the composite's
+  default path; also caught by the smoke test. Passing an explicit empty
+  string is no longer supported.
+
+### Removed
+
+- `.github/dependabot.yml` — Renovate is the single dependency manager for
+  this repo. Both were active and overlapped on the github-actions ecosystem
+  (duplicate Monday PRs); Renovate additionally handles the
+  `# renovate: datasource=…` version-pin comments that Dependabot can't.
+  Fixture lockfiles under `tests/fixtures/` are excluded via `ignorePaths`.
+
+### Changed
+
+- `node-bun.yml`, `expo.yml` — the `use-mise` path now uses the `setup-mise`
+  composite (full-path `@v2` ref) instead of a duplicated inline
+  `curl https://mise.run | sh`, gaining the composite's tool-dir cache.
+  Behaviour-preserving otherwise.
+- `ansible.yml`, `molecule.yml`, `toml-lint.yml` (and self-test) — Python is
+  now provisioned via uv (`astral-sh/setup-uv` + `uvx`/`uv run`) instead of
+  `actions/setup-python` + global `pip install`, matching `python-uv.yml` and
+  the v2.9.0 yamllint fix (setup-python can't provision Python on newer
+  self-hosted runners). ansible/ansible-lint/molecule run in ephemeral uvx
+  environments; `python-version` inputs still pin the interpreter (on
+  `ansible.yml`'s mise path, uv uses the mise-provisioned interpreter
+  instead).
+
 ## [2.10.0] - 2026-06-12
 
 ### Added
