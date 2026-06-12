@@ -44,6 +44,13 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
   `komodo-deploy.yml` gets `permissions: {}` (pure API call, no checkout) —
   the last two workflows without explicit permissions blocks.
 
+### Fixed
+
+- `setup-trivy` — bump the default Trivy version 0.57.1 → 0.71.0. The
+  v0.57.1 release was deleted upstream, so the download URL 404'd and the
+  action was silently broken for any caller on the default. Caught by the
+  new composite smoke test on its first run.
+
 ### Removed
 
 - `.github/dependabot.yml` — Renovate is the single dependency manager for
