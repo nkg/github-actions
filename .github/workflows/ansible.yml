@@ -42,6 +42,7 @@ on:
 jobs:
   ci:
     runs-on: ${{ fromJSON(inputs.runs-on) }}
+    timeout-minutes: 15
     env:
       # Python request passed to every uvx call. Empty on the mise path so uv
       # discovers the mise-provisioned interpreter from PATH instead of

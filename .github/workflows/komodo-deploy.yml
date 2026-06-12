@@ -54,6 +54,9 @@ on:
 jobs:
   deploy:
     runs-on: ${{ fromJSON(inputs.runs-on) }}
+    timeout-minutes: 15
+    # Pure API call — no checkout, no GitHub token use.
+    permissions: {}
     steps:
       - name: Trigger Komodo execute
         id: trigger

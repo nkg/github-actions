@@ -36,6 +36,7 @@ jobs:
   taplo-fmt:
     if: inputs.run-fmt-check
     runs-on: ${{ fromJSON(inputs.runs-on) }}
+    timeout-minutes: 10
     permissions:
       contents: read
     steps:
@@ -58,6 +59,7 @@ jobs:
   tomllib-parse:
     if: inputs.run-parse-check
     runs-on: ${{ fromJSON(inputs.runs-on) }}
+    timeout-minutes: 10
     permissions:
       contents: read
     steps:

@@ -11,6 +11,7 @@ jobs:
     # pool). Tag-push only, so not a fork-PR risk, but kept consistent with
     # self-test and off the self-hosted fleet.
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions:
       contents: write
     steps:

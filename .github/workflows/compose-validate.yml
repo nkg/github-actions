@@ -37,6 +37,9 @@ on:
 jobs:
   validate:
     runs-on: ${{ fromJSON(inputs.runs-on) }}
+    timeout-minutes: 10
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v6
 

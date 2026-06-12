@@ -63,6 +63,7 @@ jobs:
        github.event.workflow_run.conclusion == 'success' &&
        github.event.workflow_run.actor.login == 'dependabot[bot]')
     runs-on: ${{ fromJSON(inputs.runs-on) }}
+    timeout-minutes: 10
     permissions:
       contents: write
       pull-requests: write

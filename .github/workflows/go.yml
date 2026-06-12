@@ -149,6 +149,7 @@ on:
 jobs:
   ci:
     runs-on: ${{ fromJSON(inputs.runs-on) }}
+    timeout-minutes: 30
     # Exported to every Go step. Empty string is equivalent to unset (no
     # private patterns), so this is a no-op for public-only callers.
     env:

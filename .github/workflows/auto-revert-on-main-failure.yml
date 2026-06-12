@@ -38,6 +38,7 @@ on:
 jobs:
   open-revert-pr:
     runs-on: ${{ fromJSON(inputs.runs-on) }}
+    timeout-minutes: 10
     permissions:
       contents: write
       pull-requests: write

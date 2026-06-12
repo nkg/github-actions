@@ -115,6 +115,7 @@ on:
 jobs:
   ci:
     runs-on: ${{ fromJSON(inputs.runs-on) }}
+    timeout-minutes: 30
     env:
       MIX_ENV: ${{ inputs.mix-env }}
     defaults:
@@ -211,6 +212,7 @@ jobs:
   test-db:
     if: inputs.run-db-tests
     runs-on: ${{ fromJSON(inputs.runs-on) }}
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: ${{ inputs.working-directory }}

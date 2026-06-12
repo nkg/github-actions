@@ -43,6 +43,7 @@ on:
 jobs:
   prepare-matrix:
     runs-on: ${{ fromJSON(inputs.runs-on) }}
+    timeout-minutes: 5
     outputs:
       roles: ${{ steps.parse.outputs.roles }}
     steps:

@@ -27,6 +27,15 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
   end-to-end against tiny fixture projects under `tests/fixtures/` via
   local-path `uses:` (executes the workflows from the PR's commit).
 
+### Changed (hardening)
+
+- Every job now sets `timeout-minutes` (5–45 depending on job class:
+  lint ~10, language CI 30, docker-build 45) so a hung step can't occupy a
+  runner indefinitely — previously ~16 workflows had no cap.
+- `compose-validate.yml` gets an explicit `permissions: contents: read`;
+  `komodo-deploy.yml` gets `permissions: {}` (pure API call, no checkout) —
+  the last two workflows without explicit permissions blocks.
+
 ### Removed
 
 - `.github/dependabot.yml` — Renovate is the single dependency manager for

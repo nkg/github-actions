@@ -29,6 +29,7 @@ on:
 jobs:
   actionlint:
     runs-on: ${{ fromJSON(inputs.runs-on) }}
+    timeout-minutes: 10
     permissions:
       contents: read
     steps:
@@ -57,6 +58,7 @@ jobs:
   yamllint:
     if: inputs.run-yamllint
     runs-on: ${{ fromJSON(inputs.runs-on) }}
+    timeout-minutes: 10
     permissions:
       contents: read
     steps:

@@ -92,6 +92,7 @@ on:
 jobs:
   build:
     runs-on: ${{ fromJSON(inputs.runs-on) }}
+    timeout-minutes: 45
     permissions:
       contents: read
       packages: write

@@ -44,6 +44,7 @@ jobs:
     # Only act on Dependabot's own PRs.
     if: github.actor == 'dependabot[bot]'
     runs-on: ${{ fromJSON(inputs.runs-on) }}
+    timeout-minutes: 15
     permissions:
       contents: write
     steps:
