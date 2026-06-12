@@ -4,9 +4,16 @@ on:
   workflow_call:
     inputs:
       tofu-version:
-        description: "OpenTofu version"
+        description: "OpenTofu version. Ignored when use-mise is true — the version then comes from the consumer's mise.toml."
         type: string
         default: "1.8.0"
+      use-mise:
+        description: |
+          Install OpenTofu via mise (reads the consumer's mise.toml) instead
+          of opentofu/setup-opentofu. Overrides tofu-version. TF_API_TOKEN
+          (if set) is written to ~/.tofurc for app.terraform.io on this path.
+        type: boolean
+        default: false
       working-directory:
         description: "Directory containing the .tf files"
         type: string
@@ -49,7 +56,33 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      # Full path + floating major tag: a relative ./.github/actions path
+      # inside a reusable resolves against the consumer's checkout, not this
+      # repo. Installs mise, caches the tool dir, runs `mise install`.
+      - name: Setup mise toolchain
+        if: inputs.use-mise
+        uses: nkg/github-actions/.github/actions/setup-mise@v2
+        with:
+          working-directory: ${{ inputs.working-directory }}
+
+      # setup-opentofu writes the backend credential file itself; the mise
+      # path replicates just that bit (default app.terraform.io hostname).
+      - name: Configure backend credentials (mise path)
+        if: inputs.use-mise
+        env:
+          TF_API_TOKEN: ${{ secrets.TF_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -n "${TF_API_TOKEN:-}" ]; then
+            cat > "$HOME/.tofurc" <<EOF
+          credentials "app.terraform.io" {
+            token = "$TF_API_TOKEN"
+          }
+          EOF
+          fi
+
       - uses: opentofu/setup-opentofu@v2
+        if: ${{ !inputs.use-mise }}
         with:
           tofu_version: ${{ inputs.tofu-version }}
           cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}

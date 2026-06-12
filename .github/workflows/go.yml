@@ -5,11 +5,16 @@ on:
     inputs:
       go-version:
         description: |
-          Go version (e.g. '1.23'). To pin via mise instead, set it in
-          .mise.toml and pass that version here — this workflow can't run a
-          setup-mise pre-step on the consumer's behalf.
+          Go version (e.g. '1.23'). Ignored when use-mise is true — the
+          version then comes from the consumer's mise.toml.
         type: string
         default: "1.23"
+      use-mise:
+        description: |
+          Install the toolchain via mise (reads the consumer's mise.toml)
+          instead of actions/setup-go. Overrides go-version.
+        type: boolean
+        default: false
       working-directory:
         type: string
         default: "."
@@ -170,11 +175,34 @@ jobs:
           app-private-key: ${{ secrets.DEPS_READER_PRIVATE_KEY }}
           repositories: ${{ inputs.deps-reader-repositories }}
 
+      # Same full-path pattern as setup-deps-reader above: the composite
+      # installs mise, caches the tool dir, and runs `mise install` against
+      # the consumer's mise.toml.
+      - name: Setup mise toolchain
+        if: inputs.use-mise
+        uses: nkg/github-actions/.github/actions/setup-mise@v2
+        with:
+          working-directory: ${{ inputs.working-directory }}
+
       - name: Set up Go
+        if: ${{ !inputs.use-mise }}
         uses: actions/setup-go@v6
         with:
           go-version: ${{ inputs.go-version }}
           cache-dependency-path: ${{ inputs.working-directory }}/go.sum
+
+      # setup-go caches the module/build dirs itself; the mise path has no
+      # such action, so cache them explicitly (keyed on go.sum).
+      - name: Cache Go modules (mise path)
+        if: inputs.use-mise
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: mise-go-${{ runner.os }}-${{ hashFiles(format('{0}/go.sum', inputs.working-directory)) }}
+          restore-keys: |
+            mise-go-${{ runner.os }}-
 
       - name: Download modules
         run: go mod download

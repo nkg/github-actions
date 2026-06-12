@@ -4,9 +4,16 @@ on:
   workflow_call:
     inputs:
       python-version:
-        description: "Python version (for ansible + ansible-lint)"
+        description: "Python version (for ansible + ansible-lint). Ignored when use-mise is true."
         type: string
         default: "3.12"
+      use-mise:
+        description: |
+          Install Python via mise (reads the consumer's mise.toml) instead of
+          actions/setup-python. Overrides python-version. ansible +
+          ansible-lint are still pip-installed into that interpreter.
+        type: boolean
+        default: false
       working-directory:
         description: "Repo subdirectory containing playbooks"
         type: string
@@ -41,10 +48,31 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      # Full path + floating major tag: a relative ./.github/actions path
+      # inside a reusable resolves against the consumer's checkout, not this
+      # repo. Installs mise, caches the tool dir, runs `mise install`.
+      - name: Setup mise toolchain
+        if: inputs.use-mise
+        uses: nkg/github-actions/.github/actions/setup-mise@v2
+        with:
+          working-directory: ${{ inputs.working-directory }}
+
       - uses: actions/setup-python@v6
+        if: ${{ !inputs.use-mise }}
         with:
           python-version: ${{ inputs.python-version }}
           cache: pip
+
+      # setup-python caches pip downloads itself; the mise path has no such
+      # action, so cache the pip download dir explicitly.
+      - name: Cache pip downloads (mise path)
+        if: inputs.use-mise
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/pip
+          key: mise-pip-${{ runner.os }}-${{ hashFiles('**/.mise.toml', '**/mise.toml', '**/.tool-versions') }}
+          restore-keys: |
+            mise-pip-${{ runner.os }}-
 
       - name: Install ansible + ansible-lint
         run: pip install ansible ansible-lint

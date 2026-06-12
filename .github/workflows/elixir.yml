@@ -11,6 +11,12 @@ on:
         description: "OTP version"
         type: string
         default: "27"
+      use-mise:
+        description: |
+          Install Erlang/Elixir via mise (reads the consumer's mise.toml)
+          instead of erlef/setup-beam. Overrides elixir-version/otp-version.
+        type: boolean
+        default: false
       working-directory:
         description: "Directory containing mix.exs"
         type: string
@@ -129,7 +135,17 @@ jobs:
           app-private-key: ${{ secrets.DEPS_READER_PRIVATE_KEY }}
           repositories: ${{ inputs.deps-reader-repositories }}
 
+      # Same full-path pattern as setup-deps-reader above: installs mise,
+      # caches the tool dir, and runs `mise install` against the consumer's
+      # mise.toml (which pins erlang + elixir there).
+      - name: Setup mise toolchain
+        if: inputs.use-mise
+        uses: nkg/github-actions/.github/actions/setup-mise@v2
+        with:
+          working-directory: ${{ inputs.working-directory }}
+
       - uses: erlef/setup-beam@v1
+        if: ${{ !inputs.use-mise }}
         with:
           elixir-version: ${{ inputs.elixir-version }}
           otp-version: ${{ inputs.otp-version }}
@@ -242,7 +258,14 @@ jobs:
           app-private-key: ${{ secrets.DEPS_READER_PRIVATE_KEY }}
           repositories: ${{ inputs.deps-reader-repositories }}
 
+      - name: Setup mise toolchain
+        if: inputs.use-mise
+        uses: nkg/github-actions/.github/actions/setup-mise@v2
+        with:
+          working-directory: ${{ inputs.working-directory }}
+
       - uses: erlef/setup-beam@v1
+        if: ${{ !inputs.use-mise }}
         with:
           elixir-version: ${{ inputs.elixir-version }}
           otp-version: ${{ inputs.otp-version }}

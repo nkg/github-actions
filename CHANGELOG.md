@@ -6,6 +6,28 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ## [Unreleased]
 
+### Added
+
+- `go.yml`, `elixir.yml`, `opentofu.yml`, `ansible.yml` — new `use-mise` input
+  (default false): install the toolchain via the `setup-mise` composite from
+  the consumer's `mise.toml` instead of `actions/setup-go` /
+  `erlef/setup-beam` / `opentofu/setup-opentofu` / `actions/setup-python`.
+  The `*-version` inputs are ignored on the mise path. go/ansible mise paths
+  cache the module/pip dirs explicitly (the setup actions normally do this);
+  opentofu's mise path writes `TF_API_TOKEN` to `~/.tofurc`
+  (app.terraform.io) since `setup-opentofu` isn't there to do it. Brings every
+  language workflow in line with the org's mise-first runtime policy.
+- `setup-mise` — new `working-directory` input (default `.`) so `mise install`
+  reads the mise.toml of a subdirectory project, matching the reusable
+  workflows' `working-directory` semantics.
+
+### Changed
+
+- `node-bun.yml`, `expo.yml` — the `use-mise` path now uses the `setup-mise`
+  composite (full-path `@v2` ref) instead of a duplicated inline
+  `curl https://mise.run | sh`, gaining the composite's tool-dir cache.
+  Behaviour-preserving otherwise.
+
 ## [2.10.0] - 2026-06-12
 
 ### Added

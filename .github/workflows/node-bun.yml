@@ -111,16 +111,15 @@ jobs:
             echo "cache_path=$cache"
           } >> "$GITHUB_OUTPUT"
 
+      # Full path + floating major tag: a relative ./.github/actions path
+      # inside a reusable resolves against the consumer's checkout, not this
+      # repo. The composite installs mise, caches the tool dir, and runs
+      # `mise install` against the consumer's mise config.
       - name: Setup mise toolchain
         if: inputs.use-mise
-        env:
-          MISE_YES: "1"
-        run: |
-          set -euo pipefail
-          curl -fsSL https://mise.run | sh
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-          echo "$HOME/.local/share/mise/shims" >> "$GITHUB_PATH"
-          "$HOME/.local/bin/mise" install
+        uses: nkg/github-actions/.github/actions/setup-mise@v2
+        with:
+          working-directory: ${{ inputs.working-directory }}
 
       - name: Setup Bun
         if: ${{ !inputs.use-mise && inputs.package-manager == 'bun' }}

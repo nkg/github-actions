@@ -14,6 +14,10 @@ inputs:
     description: "Set MISE_EXPERIMENTAL=1"
     required: false
     default: "false"
+  working-directory:
+    description: "Directory `mise install` runs in (where the mise.toml lives)"
+    required: false
+    default: "."
 
 runs:
   using: composite
@@ -48,4 +52,5 @@ runs:
     - name: mise install
       if: inputs.install == 'true'
       shell: bash
+      working-directory: ${{ inputs.working-directory }}
       run: mise install
