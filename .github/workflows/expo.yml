@@ -100,10 +100,10 @@ jobs:
         run: |
           set -euo pipefail
           case "$PM" in
-            bun)  run="bun run"; exec="bunx";            install="bun install --frozen-lockfile"; test="bun test";  lock="bun.lockb" ;;
-            npm)  run="npm run"; exec="npx --no-install"; install="npm ci";                        test="npm test";  lock="package-lock.json" ;;
-            yarn) run="yarn";    exec="yarn";             install="yarn install --frozen-lockfile"; test="yarn test"; lock="yarn.lock" ;;
-            pnpm) run="pnpm run"; exec="pnpm exec";       install="pnpm install --frozen-lockfile"; test="pnpm test"; lock="pnpm-lock.yaml" ;;
+            bun)  run="bun run"; exec="bunx";            install="bun install --frozen-lockfile"; test="bun test";  lock="bun.lockb";         cache="$HOME/.bun/install/cache" ;;
+            npm)  run="npm run"; exec="npx --no-install"; install="npm ci";                        test="npm test";  lock="package-lock.json"; cache="$HOME/.npm" ;;
+            yarn) run="yarn";    exec="yarn";             install="yarn install --frozen-lockfile"; test="yarn test"; lock="yarn.lock";        cache="$HOME/.cache/yarn" ;;
+            pnpm) run="pnpm run"; exec="pnpm exec";       install="pnpm install --frozen-lockfile"; test="pnpm test"; lock="pnpm-lock.yaml";   cache="$HOME/.local/share/pnpm/store" ;;
             *) echo "::error::unsupported package-manager: $PM (expected bun|npm|yarn|pnpm)"; exit 1 ;;
           esac
           {
@@ -112,6 +112,7 @@ jobs:
             echo "typecheck=$exec tsc --noEmit"
             echo "test=$test"
             echo "lock=$lock"
+            echo "cache_path=$cache"
           } >> "$GITHUB_OUTPUT"
 
       - name: Setup mise toolchain
@@ -142,6 +143,18 @@ jobs:
           node-version: ${{ inputs.node-version }}
           cache: ${{ inputs.package-manager }}
           cache-dependency-path: ${{ inputs.working-directory }}/${{ steps.tc.outputs.lock }}
+
+      # The bun/node setup actions above cache the package store themselves;
+      # the mise path has no such action, so cache the resolved package
+      # manager's download dir explicitly (keyed on whichever lockfile exists).
+      - name: Cache package downloads (mise path)
+        if: inputs.use-mise
+        uses: actions/cache@v5
+        with:
+          path: ${{ steps.tc.outputs.cache_path }}
+          key: mise-${{ inputs.package-manager }}-${{ runner.os }}-${{ hashFiles('**/bun.lockb', '**/package-lock.json', '**/yarn.lock', '**/pnpm-lock.yaml') }}
+          restore-keys: |
+            mise-${{ inputs.package-manager }}-${{ runner.os }}-
 
       - name: Install
         run: ${{ inputs.install-command != '' && inputs.install-command || steps.tc.outputs.install }}

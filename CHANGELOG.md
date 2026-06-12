@@ -8,6 +8,14 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ### Added
 
+- `expo.yml` + `node-bun.yml` — cache the package-manager download dir on the
+  `use-mise` path. The bun/node setup actions already cache their store, but
+  `use-mise: true` skips them, so mise-path runs re-downloaded every build.
+  Adds an `actions/cache` step (gated on `use-mise`) keyed on whichever
+  lockfile exists, caching the resolved PM's dir (`~/.npm`, `~/.bun/install/cache`,
+  `~/.cache/yarn`, `~/.local/share/pnpm/store`). No-op for the non-mise paths;
+  additive. Follow-up to the v2.8.0 package-manager-agnostic work — biggest win
+  on ephemeral GitHub-hosted runners (self-hosted already persists the dir).
 - `dependabot-uv-lockfile.yml` — regenerates `uv.lock` on Dependabot PRs and
   pushes the result back onto the PR branch, keeping the resolved graph in sync
   when a bump (especially grouped/transitive) leaves the lockfile stale. The
