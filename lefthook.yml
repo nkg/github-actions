@@ -1,0 +1,53 @@
+# Git hooks (lefthook — https://lefthook.dev/).
+#
+# pre-commit: fast checks on staged files only.
+# pre-push: the same checks self-test.yml runs in CI, so a push that passes
+# here passes Actions. See examples/pre-push-hook.md for the rationale —
+# this repo documents the pattern, so it dogfoods it too.
+#
+# Tools (lefthook, actionlint, gitleaks, uv) are pinned in mise.toml;
+# `mise install && lefthook install` on a fresh clone enables the hooks.
+
+pre-commit:
+  parallel: true
+  commands:
+    gitleaks:
+      run: gitleaks git --pre-commit --staged --redact --no-banner
+    yamllint:
+      glob: "*.{yml,yaml}"
+      run: uvx yamllint {staged_files}
+    actionlint:
+      glob: ".github/{workflows,actions}/**/*.{yml,yaml}"
+      run: actionlint -color
+
+pre-push:
+  parallel: true
+  commands:
+    # Stand-in for branch protection (Free plan) — see examples/pre-push-hook.md.
+    # Escape hatch for intentional direct pushes: ALLOW_MAIN_PUSH=1 git push
+    protect-main:
+      run: |
+        branch="$(git symbolic-ref --short HEAD 2>/dev/null || echo detached)"
+        if [ "$branch" = "main" ] || [ "$branch" = "Main" ]; then
+          if [ "${ALLOW_MAIN_PUSH:-}" != "1" ]; then
+            echo "Blocked: direct push to $branch. Open a PR, or ALLOW_MAIN_PUSH=1 git push." >&2
+            exit 1
+          fi
+        fi
+    # Mirrors self-test.yml "lint" job (lint-workflows.yml).
+    actionlint:
+      run: actionlint -color
+    yamllint:
+      run: uvx yamllint .github/ .yamllint.yml
+    # Mirrors self-test.yml "composite-actions-syntax" job, byte-for-byte.
+    action-syntax:
+      run: |
+        set -euo pipefail
+        for action in .github/actions/*/action.yml; do
+          echo "Checking $action"
+          uv run --no-project --with pyyaml python -c \
+            "import sys, yaml; yaml.safe_load(open(sys.argv[1]))" "$action"
+        done
+    # Full-history secret scan, matching secret-scan.yml's push-event mode.
+    gitleaks:
+      run: gitleaks git --redact --no-banner

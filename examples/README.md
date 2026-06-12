@@ -15,7 +15,7 @@ jobs:
   test:
     uses: nkg/github-actions/.github/workflows/python-uv.yml@v2
     with:
-      python-version: "3.12"
+      python-version: "3.14"
     secrets: inherit
 ```
 
