@@ -1,0 +1,13 @@
+{
+  "name": "node-bun-fixture",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "lint": "echo lint-ok",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "build": "bun build index.ts --outdir dist"
+  },
+  "devDependencies": {
+    "typescript": "^5"
+  }
+}

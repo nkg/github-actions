@@ -20,6 +20,12 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 - `setup-mise` — new `working-directory` input (default `.`) so `mise install`
   reads the mise.toml of a subdirectory project, matching the reusable
   workflows' `working-directory` semantics.
+- Self-test — functional CI on top of the existing lint-only checks:
+  a `composite-actions-smoke` job runs setup-mise/-trivy/-sops/-cosign/-go
+  from the PR's code and asserts each tool answers `--version`, and three
+  integration jobs run `python-uv.yml`, `go.yml` and `node-bun.yml`
+  end-to-end against tiny fixture projects under `tests/fixtures/` via
+  local-path `uses:` (executes the workflows from the PR's commit).
 
 ### Changed
 
