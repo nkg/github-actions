@@ -6,6 +6,8 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ## [Unreleased]
 
+## [2.11.0] - 2026-06-12
+
 ### Added
 
 - `go.yml`, `elixir.yml`, `opentofu.yml`, `ansible.yml` — new `use-mise` input
@@ -606,7 +608,8 @@ README; everything below is the actual content of this repo.
 - Bumped `actions/checkout` from `@v4` to `@v6` across all existing
   workflows for consistency with new files.
 
-[Unreleased]: https://github.com/nkg/github-actions/compare/v2.10.0...HEAD
+[Unreleased]: https://github.com/nkg/github-actions/compare/v2.11.0...HEAD
+[2.11.0]: https://github.com/nkg/github-actions/compare/v2.10.0...v2.11.0
 [2.10.0]: https://github.com/nkg/github-actions/compare/v2.9.0...v2.10.0
 [2.9.0]: https://github.com/nkg/github-actions/compare/v2.8.0...v2.9.0
 [2.8.0]: https://github.com/nkg/github-actions/compare/v2.7.0...v2.8.0
