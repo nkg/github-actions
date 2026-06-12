@@ -27,6 +27,14 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
   end-to-end against tiny fixture projects under `tests/fixtures/` via
   local-path `uses:` (executes the workflows from the PR's commit).
 
+### Removed
+
+- `.github/dependabot.yml` — Renovate is the single dependency manager for
+  this repo. Both were active and overlapped on the github-actions ecosystem
+  (duplicate Monday PRs); Renovate additionally handles the
+  `# renovate: datasource=…` version-pin comments that Dependabot can't.
+  Fixture lockfiles under `tests/fixtures/` are excluded via `ignorePaths`.
+
 ### Changed
 
 - `node-bun.yml`, `expo.yml` — the `use-mise` path now uses the `setup-mise`

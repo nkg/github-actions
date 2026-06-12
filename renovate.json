@@ -6,6 +6,7 @@
     ":dependencyDashboard"
   ],
   "schedule": ["before 9am on monday"],
+  "ignorePaths": ["tests/fixtures/**"],
   "packageRules": [
     {
       "matchManagers": ["github-actions"],
