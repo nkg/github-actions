@@ -6,6 +6,8 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ## [Unreleased]
 
+## [2.10.0] - 2026-06-12
+
 ### Added
 
 - `expo.yml` + `node-bun.yml` — cache the package-manager download dir on the
