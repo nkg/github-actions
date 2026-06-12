@@ -73,13 +73,13 @@ jobs:
       matrix:
         role: ${{ fromJson(needs.prepare-matrix.outputs.roles) }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
       # uv provisions Python and runs molecule in an ephemeral uvx
       # environment — no setup-python (which can't provision Python on newer
       # self-hosted runners), no global pip.
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
           enable-cache: true
 

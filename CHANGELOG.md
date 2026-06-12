@@ -29,6 +29,14 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ### Changed (hardening)
 
+- All third-party actions (88 references, 23 actions) are now pinned to the
+  full commit SHA of their **latest** release, with the version as a trailing
+  comment (`uses: actions/checkout@df4cb1c0… # v6.0.3`). Renovate continues
+  to manage them (digest + comment updates). Self-references
+  (`nkg/github-actions/...@v2`) stay on the floating tag. Two majors were
+  bumped to reach latest: `astral-sh/setup-uv` v7 → v8.2.0 and
+  `sigstore/cosign-installer` v3 → v4.1.2 (inputs used by this repo are
+  unchanged in both).
 - Every job now sets `timeout-minutes` (5–45 depending on job class:
   lint ~10, language CI 30, docker-build 45) so a hung step can't occupy a
   runner indefinitely — previously ~16 workflows had no cap.

@@ -122,7 +122,7 @@ jobs:
       run:
         working-directory: ${{ inputs.working-directory }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
       # Private-deps access (opt-in). Full path + floating major tag: a relative
       # ./.github/actions path inside a reusable resolves against the consumer's
@@ -145,14 +145,14 @@ jobs:
         with:
           working-directory: ${{ inputs.working-directory }}
 
-      - uses: erlef/setup-beam@v1
+      - uses: erlef/setup-beam@fc68ffb90438ef2936bbb3251622353b3dcb2f93 # v1.24.0
         if: ${{ !inputs.use-mise }}
         with:
           elixir-version: ${{ inputs.elixir-version }}
           otp-version: ${{ inputs.otp-version }}
 
       - name: Cache deps and _build
-        uses: actions/cache@v5
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: |
             ${{ inputs.working-directory }}/deps
@@ -250,7 +250,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
       - name: Configure private-deps access
         if: inputs.deps-reader-client-id != ''
@@ -266,14 +266,14 @@ jobs:
         with:
           working-directory: ${{ inputs.working-directory }}
 
-      - uses: erlef/setup-beam@v1
+      - uses: erlef/setup-beam@fc68ffb90438ef2936bbb3251622353b3dcb2f93 # v1.24.0
         if: ${{ !inputs.use-mise }}
         with:
           elixir-version: ${{ inputs.elixir-version }}
           otp-version: ${{ inputs.otp-version }}
 
       - name: Cache deps and _build
-        uses: actions/cache@v5
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: |
             ${{ inputs.working-directory }}/deps
