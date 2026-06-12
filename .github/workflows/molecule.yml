@@ -74,26 +74,29 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: actions/setup-python@v6
+      # uv provisions Python and runs molecule in an ephemeral uvx
+      # environment — no setup-python (which can't provision Python on newer
+      # self-hosted runners), no global pip.
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
         with:
-          python-version: ${{ inputs.python-version }}
-          cache: pip
-
-      - name: Install ansible-core + molecule
-        env:
-          DRIVER: ${{ inputs.molecule-driver }}
-        run: pip install ansible-core molecule "molecule-plugins[$DRIVER]"
+          enable-cache: true
 
       - name: Install galaxy collections
         env:
           REQS: ${{ inputs.requirements-file }}
+          PYVER: ${{ inputs.python-version }}
         run: |
           if [ -n "$REQS" ] && [ -f "$REQS" ]; then
-            ansible-galaxy install -r "$REQS"
+            uvx --python "$PYVER" --from ansible-core ansible-galaxy install -r "$REQS"
           else
             echo "no requirements file at '$REQS' — skipping"
           fi
 
       - name: Molecule test (${{ matrix.role }})
         working-directory: ${{ inputs.roles-dir }}/${{ matrix.role }}
-        run: molecule test -s ${{ inputs.molecule-scenario }}
+        env:
+          DRIVER: ${{ inputs.molecule-driver }}
+          PYVER: ${{ inputs.python-version }}
+          SCENARIO: ${{ inputs.molecule-scenario }}
+        run: uvx --python "$PYVER" --with ansible-core --with "molecule-plugins[$DRIVER]" molecule test -s "$SCENARIO"

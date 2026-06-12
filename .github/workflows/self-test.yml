@@ -23,13 +23,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-      - run: pip install pyyaml
+      - uses: astral-sh/setup-uv@v7
       - name: Validate composite action metadata
         run: |
+          set -euo pipefail
           for action in .github/actions/*/action.yml; do
             echo "Checking $action"
-            python -c "import yaml; yaml.safe_load(open('$action'))"
+            uv run --no-project --with pyyaml python -c \
+              "import sys, yaml; yaml.safe_load(open(sys.argv[1]))" "$action"
           done

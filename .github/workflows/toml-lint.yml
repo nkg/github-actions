@@ -63,25 +63,39 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: actions/setup-python@v6
-        with:
-          python-version: ${{ inputs.python-version }}
+      # uv provisions the interpreter (setup-python can't on newer
+      # self-hosted runners); tomllib is stdlib so nothing is pip-installed.
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
 
       - name: Parse all TOML
         env:
           PATHS: ${{ inputs.paths }}
+          PYVER: ${{ inputs.python-version }}
         run: |
-          set -e
+          set -euo pipefail
           shopt -s globstar nullglob
-          fail=0
+          files=()
           # Word-splitting on $PATHS is intentional — input is space-separated globs.
           # shellcheck disable=SC2086
           for f in $PATHS; do
-            [ -f "$f" ] || continue
-            if ! python3 -c "import tomllib, sys; tomllib.load(open(sys.argv[1], 'rb'))" "$f" 2>err.log; then
-              echo "::error file=$f::TOML parse failed"
-              cat err.log
-              fail=1
-            fi
+            if [ -f "$f" ]; then files+=("$f"); fi
           done
-          exit "$fail"
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "no TOML files matched '$PATHS'"
+            exit 0
+          fi
+          uv run --no-project --python "$PYVER" python - "${files[@]}" <<'EOF'
+          import sys
+          import tomllib
+
+          fail = 0
+          for path in sys.argv[1:]:
+              try:
+                  with open(path, "rb") as fh:
+                      tomllib.load(fh)
+              except Exception as exc:
+                  print(f"::error file={path}::TOML parse failed: {exc}")
+                  fail = 1
+          sys.exit(fail)
+          EOF

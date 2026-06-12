@@ -27,6 +27,14 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
   composite (full-path `@v2` ref) instead of a duplicated inline
   `curl https://mise.run | sh`, gaining the composite's tool-dir cache.
   Behaviour-preserving otherwise.
+- `ansible.yml`, `molecule.yml`, `toml-lint.yml` (and self-test) — Python is
+  now provisioned via uv (`astral-sh/setup-uv` + `uvx`/`uv run`) instead of
+  `actions/setup-python` + global `pip install`, matching `python-uv.yml` and
+  the v2.9.0 yamllint fix (setup-python can't provision Python on newer
+  self-hosted runners). ansible/ansible-lint/molecule run in ephemeral uvx
+  environments; `python-version` inputs still pin the interpreter (on
+  `ansible.yml`'s mise path, uv uses the mise-provisioned interpreter
+  instead).
 
 ## [2.10.0] - 2026-06-12
 
