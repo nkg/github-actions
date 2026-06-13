@@ -88,6 +88,12 @@ jobs:
         with:
           tofu_version: ${{ inputs.tofu-version }}
           cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+          # Skip the Node wrapper around `tofu`. It exists only to capture
+          # stdout/stderr/exitcode into step outputs, which this reusable
+          # never reads — every tofu invocation below is a plain `run:`
+          # step. Disabling it drops the node-shim dependency and the
+          # trap it causes when `tofu` is called outside the wrapper.
+          tofu_wrapper: false
 
       - name: tofu fmt
         if: inputs.run-fmt
