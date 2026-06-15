@@ -8,6 +8,7 @@ lefthook = "latest"
 actionlint = "1.7.12"
 gitleaks = "8.30.1"
 uv = "latest"
+taplo = "latest"
 
 [hooks]
 # Auto-register git hooks when entering the project directory.
