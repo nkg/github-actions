@@ -6,6 +6,15 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ## [Unreleased]
 
+### Changed
+
+- `opentofu.yml` — the non-mise `setup-opentofu` path now sets
+  `tofu_wrapper: false`. The reusable runs `fmt`/`init`/`validate`/`plan`
+  as plain `run:` steps and never reads the wrapper's captured
+  stdout/stderr/exitcode outputs, so the Node shim only added a
+  dependency and the trap it causes when `tofu` is invoked outside the
+  wrapper. No effect on the mise path (which never installs it).
+
 ### Added
 
 - Local git hooks via lefthook (`lefthook.yml` + `mise.toml`), dogfooding
