@@ -6,6 +6,8 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ## [Unreleased]
 
+## [2.12.0] - 2026-06-16
+
 ### Fixed
 
 - `go.yml` — `postgres-enabled` integration tests now work on containerized
