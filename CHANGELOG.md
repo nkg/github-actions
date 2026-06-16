@@ -6,6 +6,19 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ## [Unreleased]
 
+### Fixed
+
+- `go.yml` — `postgres-enabled` integration tests now work on containerized
+  self-hosted runners. The `Start Postgres` step published the port and pointed
+  `DATABASE_URL` at `localhost:5432`, which only works when the job runs on the
+  runner host (GitHub-hosted). When the job runs inside a container with a
+  sibling Docker daemon, the published port lands on the daemon host and
+  `localhost:5432` is refused (the `pg_isready` poll still passes — it uses
+  `docker exec`, not TCP). The step now detects a containerized job
+  (`/.dockerenv`), attaches the Postgres container to the job's Docker network,
+  and points `DATABASE_URL` at that network IP. GitHub-hosted runs are
+  unchanged (still `localhost`).
+
 ### Changed
 
 - `opentofu.yml` — the non-mise `setup-opentofu` path now sets

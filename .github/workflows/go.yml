@@ -298,7 +298,25 @@ jobs:
             fi
             sleep 1
           done
-          echo "DATABASE_URL=postgres://${PG_USER}:${PG_PASSWORD}@localhost:5432/${PG_DB}?sslmode=disable" >> "$GITHUB_ENV"
+          # Pick a host the Test step can actually reach. On GitHub-hosted
+          # runners the job runs on the VM, so the published port is on
+          # localhost. On containerized self-hosted runners the job runs inside
+          # a container with a sibling Docker daemon: `-p 5432:5432` publishes
+          # to the daemon host, not into this container, so localhost:5432 is
+          # refused (the pg_isready check above still passes — it uses
+          # `docker exec`, not TCP). Detect that case and attach Postgres to the
+          # job container's network, addressing it by that network IP.
+          PG_HOST=localhost
+          if [ -f /.dockerenv ]; then
+            SELF="$(cat /etc/hostname)"
+            NET="$(docker inspect -f '{{range $k,$v := .NetworkSettings.Networks}}{{$k}}{{"\n"}}{{end}}' "$SELF" 2>/dev/null | head -n1 || true)"
+            if [ -n "$NET" ]; then
+              docker network connect "$NET" ci-postgres
+              PG_HOST="$(docker inspect -f "{{(index .NetworkSettings.Networks \"$NET\").IPAddress}}" ci-postgres)"
+              echo "containerized runner: reaching postgres at ${PG_HOST}:5432 via network ${NET}"
+            fi
+          fi
+          echo "DATABASE_URL=postgres://${PG_USER}:${PG_PASSWORD}@${PG_HOST}:5432/${PG_DB}?sslmode=disable" >> "$GITHUB_ENV"
 
       - name: Test
         if: inputs.run-tests
