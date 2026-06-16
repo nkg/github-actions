@@ -273,6 +273,11 @@ jobs:
           PG_DB: ${{ inputs.postgres-db }}
         run: |
           set -euo pipefail
+          # On self-hosted runners the workspace isn't ephemeral, so a
+          # container left over from a prior run (e.g. a cancelled job that
+          # skipped teardown) collides on the `ci-postgres` name. Remove any
+          # stale one first so the step is idempotent and self-healing.
+          docker rm -f ci-postgres >/dev/null 2>&1 || true
           docker run -d --name ci-postgres \
             -e POSTGRES_USER="$PG_USER" \
             -e POSTGRES_PASSWORD="$PG_PASSWORD" \
@@ -310,6 +315,14 @@ jobs:
           FUZZTIME: ${{ inputs.fuzz-time }}
           PKG: ${{ inputs.fuzz-package }}
         run: go test -run='^$' -fuzz="^${TARGET}$" -fuzztime="$FUZZTIME" "$PKG"
+
+      # Tear the container down on self-hosted runners, where the VM persists
+      # between jobs. always() so a failed/cancelled Test step still cleans up
+      # and the next run starts from a clean slate. Guarded by the same inputs
+      # as Start Postgres so it only runs when a container was started.
+      - name: Stop Postgres
+        if: always() && inputs.run-tests && inputs.postgres-enabled
+        run: docker rm -f ci-postgres >/dev/null 2>&1 || true
 
       - name: Upload coverage
         if: inputs.run-tests && inputs.upload-coverage
