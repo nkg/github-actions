@@ -104,7 +104,11 @@ on:
         type: boolean
         default: true
       database-url:
-        description: "Override DATABASE_URL for the db-test job. Empty = derived from the postgres-* inputs (ecto://user:pass@localhost:5432/db)."
+        description: |
+          Fully override DATABASE_URL for the db-test job (host included).
+          Empty = derived from the postgres-* inputs against the host the job
+          can actually reach (localhost on GitHub-hosted runners, the service
+          container's network IP on containerized self-hosted runners).
         type: string
         default: ""
     secrets:
@@ -205,10 +209,19 @@ jobs:
           # shellcheck disable=SC2086
           mix sobelow $ARGS
 
-  # Optional Ecto/cache-backed test suite with Postgres + Valkey services.
-  # Gated by run-db-tests: when the consumer doesn't opt in, this job is
-  # skipped and its service containers never start. Both services always run
-  # when enabled — a repo that needs only one just won't connect to the other.
+  # Optional Ecto/cache-backed test suite with Postgres + Valkey. Gated by
+  # run-db-tests: when the consumer doesn't opt in, this job is skipped.
+  #
+  # Postgres and Valkey are started with `docker run` (not a job-level
+  # `services:` block) and addressed by a host the steps can actually reach.
+  # On the org's containerized self-hosted runners the job runs inside a
+  # container with a sibling Docker daemon, so a service container's published
+  # port lands on the daemon host, not on the job container's localhost —
+  # localhost:5432 is refused there (a `services:` health check still passes,
+  # because it probes inside the service container, masking the problem). The
+  # Start steps below detect the containerized case, attach the service to the
+  # job container's own network, and export DATABASE_URL / VALKEY_URL pointing
+  # at its network IP. Mirrors the proven pattern in go.yml.
   test-db:
     if: inputs.run-db-tests
     runs-on: ${{ fromJSON(inputs.runs-on) }}
@@ -218,37 +231,6 @@ jobs:
         working-directory: ${{ inputs.working-directory }}
     env:
       MIX_ENV: ${{ inputs.mix-env }}
-      POSTGRES_USER: ${{ inputs.postgres-user }}
-      POSTGRES_PASSWORD: ${{ inputs.postgres-password }}
-      POSTGRES_DB: ${{ inputs.postgres-db }}
-      PGHOST: localhost
-      PGPORT: "5432"
-      DATABASE_URL: ${{ inputs.database-url != '' && inputs.database-url || format('ecto://{0}:{1}@localhost:5432/{2}', inputs.postgres-user, inputs.postgres-password, inputs.postgres-db) }}
-      VALKEY_URL: redis://localhost:6379
-      REDIS_URL: redis://localhost:6379
-    services:
-      postgres:
-        image: ${{ inputs.postgres-image }}
-        env:
-          POSTGRES_USER: ${{ inputs.postgres-user }}
-          POSTGRES_PASSWORD: ${{ inputs.postgres-password }}
-          POSTGRES_DB: ${{ inputs.postgres-db }}
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U ${{ inputs.postgres-user }}"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-      valkey:
-        image: ${{ inputs.valkey-image }}
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "valkey-cli ping || redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
@@ -291,9 +273,122 @@ jobs:
       - name: Compile (warnings as errors)
         run: mix compile --warnings-as-errors
 
+      # Start Postgres via `docker run` and export a reachable DATABASE_URL.
+      # See the job-level comment for why a `services:` block can't be reached
+      # on containerized self-hosted runners.
+      - name: Start Postgres
+        env:
+          PG_IMAGE: ${{ inputs.postgres-image }}
+          PG_USER: ${{ inputs.postgres-user }}
+          PG_PASSWORD: ${{ inputs.postgres-password }}
+          PG_DB: ${{ inputs.postgres-db }}
+          DATABASE_URL_OVERRIDE: ${{ inputs.database-url }}
+        run: |
+          set -euo pipefail
+          # Self-hosted runners reuse the workspace, so a container left over
+          # from a cancelled run collides on the name. Remove any stale one.
+          docker rm -f ci-postgres >/dev/null 2>&1 || true
+          docker run -d --name ci-postgres \
+            -e POSTGRES_USER="$PG_USER" \
+            -e POSTGRES_PASSWORD="$PG_PASSWORD" \
+            -e POSTGRES_DB="$PG_DB" \
+            -p 5432:5432 \
+            "$PG_IMAGE"
+          # Poll pg_isready inside the container (image pull + init takes a few
+          # seconds), capped at ~30s.
+          for i in $(seq 1 30); do
+            if docker exec ci-postgres pg_isready -U "$PG_USER" -d "$PG_DB" >/dev/null 2>&1; then
+              echo "postgres ready after ${i}s"
+              break
+            fi
+            if [ "$i" = "30" ]; then
+              echo "::error::postgres did not become ready in 30s"
+              docker logs ci-postgres || true
+              exit 1
+            fi
+            sleep 1
+          done
+          # Pick a host the Ecto steps can reach. On GitHub-hosted runners the
+          # job runs on the VM, so the published port is on localhost. On a
+          # containerized self-hosted runner the job is inside a container with
+          # a sibling daemon, so -p publishes to the daemon host (localhost is
+          # refused). Detect that, attach Postgres to the job container's
+          # network, and address it by that network IP.
+          PG_HOST=localhost
+          if [ -f /.dockerenv ]; then
+            SELF="$(cat /etc/hostname)"
+            NET="$(docker inspect -f '{{range $k,$v := .NetworkSettings.Networks}}{{$k}}{{"\n"}}{{end}}' "$SELF" 2>/dev/null | head -n1 || true)"
+            if [ -n "$NET" ]; then
+              docker network connect "$NET" ci-postgres
+              PG_HOST="$(docker inspect -f "{{(index .NetworkSettings.Networks \"$NET\").IPAddress}}" ci-postgres)"
+              echo "containerized runner: reaching postgres at ${PG_HOST}:5432 via network ${NET}"
+            fi
+          fi
+          # database-url input fully overrides (host included) when set;
+          # otherwise derive from the postgres-* inputs + the detected host.
+          if [ -n "$DATABASE_URL_OVERRIDE" ]; then
+            echo "DATABASE_URL=$DATABASE_URL_OVERRIDE" >> "$GITHUB_ENV"
+          else
+            echo "DATABASE_URL=ecto://${PG_USER}:${PG_PASSWORD}@${PG_HOST}:5432/${PG_DB}" >> "$GITHUB_ENV"
+          fi
+          {
+            echo "PGHOST=${PG_HOST}"
+            echo "PGPORT=5432"
+            echo "POSTGRES_USER=${PG_USER}"
+            echo "POSTGRES_PASSWORD=${PG_PASSWORD}"
+            echo "POSTGRES_DB=${PG_DB}"
+          } >> "$GITHUB_ENV"
+
+      # Start Valkey the same way and export VALKEY_URL/REDIS_URL. Harmless for
+      # repos that stub the cache in test config — they just won't connect.
+      - name: Start Valkey
+        env:
+          VALKEY_IMAGE: ${{ inputs.valkey-image }}
+        run: |
+          set -euo pipefail
+          docker rm -f ci-valkey >/dev/null 2>&1 || true
+          docker run -d --name ci-valkey -p 6379:6379 "$VALKEY_IMAGE"
+          for i in $(seq 1 30); do
+            if docker exec ci-valkey sh -c 'valkey-cli ping || redis-cli ping' >/dev/null 2>&1; then
+              echo "valkey ready after ${i}s"
+              break
+            fi
+            if [ "$i" = "30" ]; then
+              echo "::error::valkey did not become ready in 30s"
+              docker logs ci-valkey || true
+              exit 1
+            fi
+            sleep 1
+          done
+          VK_HOST=localhost
+          if [ -f /.dockerenv ]; then
+            SELF="$(cat /etc/hostname)"
+            NET="$(docker inspect -f '{{range $k,$v := .NetworkSettings.Networks}}{{$k}}{{"\n"}}{{end}}' "$SELF" 2>/dev/null | head -n1 || true)"
+            if [ -n "$NET" ]; then
+              docker network connect "$NET" ci-valkey
+              VK_HOST="$(docker inspect -f "{{(index .NetworkSettings.Networks \"$NET\").IPAddress}}" ci-valkey)"
+              echo "containerized runner: reaching valkey at ${VK_HOST}:6379 via network ${NET}"
+            fi
+          fi
+          {
+            echo "VALKEY_URL=redis://${VK_HOST}:6379"
+            echo "REDIS_URL=redis://${VK_HOST}:6379"
+          } >> "$GITHUB_ENV"
+
       - name: Ecto setup
         if: inputs.run-ecto-setup
         run: mix ecto.create && mix ecto.migrate
 
       - name: Test
         run: mix test
+
+      # Tear the containers down on self-hosted runners, where the workspace
+      # persists between jobs. always() so a failed/cancelled step still cleans
+      # up and the next run starts from a clean slate.
+      - name: Stop Postgres
+        if: always()
+        run: docker rm -f ci-postgres >/dev/null 2>&1 || true
+
+      - name: Stop Valkey
+        if: always()
+        run: docker rm -f ci-valkey >/dev/null 2>&1 || true
