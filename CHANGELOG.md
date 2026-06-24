@@ -6,6 +6,24 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ## [Unreleased]
 
+## [2.12.1] - 2026-06-24
+
+### Fixed
+
+- `elixir.yml` — the `test-db` job's Postgres/Valkey now work on containerized
+  self-hosted runners. The job used a `services:` block with the services
+  reached at `localhost:5432`, which only works when the job runs on the runner
+  host (GitHub-hosted). When the job runs inside a container with a sibling
+  Docker daemon, a service's published port lands on the daemon host and
+  `localhost:5432` is refused (the `services:` health check still passes — it
+  probes inside the service container, masking the problem). Replaced the
+  `services:` block with `docker run` Start steps that mirror the `go.yml`
+  pattern (#57): poll readiness via `docker exec`, and on a containerized job
+  (`/.dockerenv`) attach the service to the job's Docker network and export
+  `DATABASE_URL`/`VALKEY_URL` pointing at its network IP. `always()` teardown
+  stops the containers leaking across the persistent self-hosted workspace.
+  GitHub-hosted runs are unchanged (still `localhost`). (#59)
+
 ## [2.12.0] - 2026-06-16
 
 ### Fixed
