@@ -6,6 +6,38 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ## [Unreleased]
 
+## [2.13.0] - 2026-06-29
+
+### Added
+
+- Artifact uploads are now optional and storage-frugal across every workflow
+  that writes to GitHub Actions storage (`python-uv.yml`, `go.yml`,
+  `fastapi.yml`, `secret-scan.yml`, `docker-build.yml`). Two new inputs on each:
+  - `upload-artifacts` (boolean, default `true`) — a master switch to turn off
+    all artifact uploads in one place. Set it `false` (per repo or org-wide via
+    a caller default) to stop consuming the account-wide Actions storage quota
+    that recalculates every 6–12h. Per-artifact toggles (`upload-coverage`,
+    `run-openapi-export`, `generate-sbom`) still apply when it's `true`.
+  - `artifact-retention-days` (number, default `7`) — caps how long uploaded
+    artifacts live so the quota frees sooner. Previously uploads inherited the
+    repo default (often 90 days); the `docker-build.yml` SBOM was pinned at 30.
+  Defaults keep current behavior (uploads on), so this is non-breaking.
+
+### Changed
+
+- `secret-scan.yml` — dropped `--verbose` from the gitleaks invocation. Findings
+  still land in the SARIF report and still fail the job; verbose only flooded
+  the run log with every scanned commit.
+
+## [2.12.2] - 2026-06-29
+
+### Fixed
+
+- `secret-scan.yml` — the SARIF upload step is now `continue-on-error`, so an
+  artifact-upload failure (e.g. when the account-wide Actions storage quota is
+  exhausted) no longer turns an otherwise-clean scan red. The gitleaks step
+  remains the gate. (#60)
+
 ## [2.12.1] - 2026-06-24
 
 ### Fixed

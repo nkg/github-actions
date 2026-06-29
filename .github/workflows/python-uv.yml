@@ -43,6 +43,14 @@ on:
         description: "Upload coverage.xml as an artifact"
         type: boolean
         default: true
+      upload-artifacts:
+        description: "Master switch for uploading artifacts to GitHub Actions storage. Set false to conserve the account-wide Actions storage quota; per-artifact toggles still apply when true."
+        type: boolean
+        default: true
+      artifact-retention-days:
+        description: "Days to retain uploaded artifacts. Lower values free the account-wide Actions storage quota sooner."
+        type: number
+        default: 7
       run-pip-audit:
         description: "Run pip-audit against the resolved lockfile"
         type: boolean
@@ -140,12 +148,13 @@ jobs:
         run: ${{ inputs.test-command }}
 
       - name: Upload coverage
-        if: inputs.run-tests && inputs.upload-coverage
+        if: inputs.run-tests && inputs.upload-coverage && inputs.upload-artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: coverage-${{ inputs.python-version }}
           path: ${{ inputs.working-directory }}/coverage.xml
           if-no-files-found: ignore
+          retention-days: ${{ inputs.artifact-retention-days }}
 
       - name: pip-audit
         if: inputs.run-pip-audit

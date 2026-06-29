@@ -43,6 +43,14 @@ on:
         description: "Export openapi.json as an artifact"
         type: boolean
         default: true
+      upload-artifacts:
+        description: "Master switch for uploading artifacts to GitHub Actions storage. Set false to conserve the account-wide Actions storage quota; per-artifact toggles still apply when true."
+        type: boolean
+        default: true
+      artifact-retention-days:
+        description: "Days to retain uploaded artifacts. Lower values free the account-wide Actions storage quota sooner."
+        type: number
+        default: 7
       run-openapi-diff:
         description: "Fail when exported openapi.json differs from openapi-baseline"
         type: boolean
@@ -130,12 +138,13 @@ jobs:
           PY
 
       - name: Upload OpenAPI artifact
-        if: inputs.run-openapi-export
+        if: inputs.run-openapi-export && inputs.upload-artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: openapi
           path: ${{ inputs.working-directory }}/openapi.json
           if-no-files-found: error
+          retention-days: ${{ inputs.artifact-retention-days }}
 
       - name: OpenAPI diff vs baseline
         if: inputs.run-openapi-diff

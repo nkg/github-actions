@@ -78,6 +78,14 @@ on:
         description: "Generate an SPDX SBOM artifact via anchore/sbom-action. Requires push: true."
         type: boolean
         default: false
+      upload-artifacts:
+        description: "Master switch for uploading artifacts (e.g. the SBOM) to Actions storage. Set false to conserve the account-wide storage quota; per-artifact toggles still apply when true."
+        type: boolean
+        default: true
+      artifact-retention-days:
+        description: "Days to retain uploaded artifacts. Lower values free the account-wide Actions storage quota sooner."
+        type: number
+        default: 7
     secrets:
       registry-username:
         description: "Registry username (defaults to github.actor when unset)"
@@ -221,5 +229,5 @@ jobs:
           image: ${{ inputs.registry }}/${{ inputs.image-name }}@${{ steps.build.outputs.digest }}
           format: spdx-json
           output-file: sbom.spdx.json
-          upload-artifact: true
-          upload-artifact-retention: 30
+          upload-artifact: ${{ inputs.upload-artifacts }}
+          upload-artifact-retention: ${{ inputs.artifact-retention-days }}

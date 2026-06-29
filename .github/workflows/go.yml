@@ -103,6 +103,14 @@ on:
       upload-coverage:
         type: boolean
         default: true
+      upload-artifacts:
+        description: "Master switch for uploading artifacts to GitHub Actions storage. Set false to conserve the account-wide Actions storage quota; per-artifact toggles still apply when true."
+        type: boolean
+        default: true
+      artifact-retention-days:
+        description: "Days to retain uploaded artifacts. Lower values free the account-wide Actions storage quota sooner."
+        type: number
+        default: 7
       run-fuzz:
         description: "Run a short `go test -fuzz` smoke pass after the test step (catches panics on each PR; corpus additions are discarded)"
         type: boolean
@@ -343,9 +351,10 @@ jobs:
         run: docker rm -f ci-postgres >/dev/null 2>&1 || true
 
       - name: Upload coverage
-        if: inputs.run-tests && inputs.upload-coverage
+        if: inputs.run-tests && inputs.upload-coverage && inputs.upload-artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: go-coverage
           path: ${{ inputs.working-directory }}/coverage.out
           if-no-files-found: ignore
+          retention-days: ${{ inputs.artifact-retention-days }}
