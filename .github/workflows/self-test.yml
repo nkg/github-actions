@@ -84,6 +84,16 @@ jobs:
       runs-on: '["ubuntu-latest"]'
       working-directory: tests/fixtures/go
       upload-coverage: false
+      # Exercises the Postgres startup path: the readiness probe, the SELECT 1
+      # gate, and the DATABASE_URL export. Without this the `Start Postgres`
+      # block is gated off in every self-test job, so it shipped to every
+      # consumer having never run in this repo's own CI — which is how a probe
+      # that waited on the wrong server survived.
+      #
+      # It does NOT deterministically reproduce the initdb race (that is timing
+      # dependent). What it does prove is that the probe works against a real
+      # postgres image, rather than only against the entrypoint source.
+      postgres-enabled: true
 
   integration-node-bun:
     uses: ./.github/workflows/node-bun.yml
