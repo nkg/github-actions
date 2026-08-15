@@ -5,6 +5,12 @@ on:
     tags:
       - "v*.*.*"
 
+# Two things happen on a vX.Y.Z tag push: the floating major tag (v2) moves to
+# it, and a GitHub Release is published with that version's CHANGELOG section
+# as the notes. Releases had drifted — tags existed for 2.12.0 through 2.14.0
+# with no Release page, because creating them had been a manual step that
+# stopped after v2.11.0.
+
 jobs:
   move-major-tag:
     # Public repo → GitHub-hosted (free, no reason to use the self-hosted
@@ -30,3 +36,37 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git tag -fa "$MAJOR" -m "Track $TAG"
           git push origin "$MAJOR" --force
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF#refs/tags/}"
+          VERSION="${TAG#v}"
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists — leaving it alone."
+            exit 0
+          fi
+
+          # Pull this version's section out of the changelog: everything
+          # between its "## [X.Y.Z]" heading and the next "## [" heading.
+          # index(...)==1 is a literal prefix test, so the dots in the version
+          # aren't treated as regex wildcards.
+          notes=$(awk -v h="## [$VERSION]" '
+            index($0, h) == 1 { flag = 1; next }
+            flag && index($0, "## [") == 1 { exit }
+            flag { print }
+          ' CHANGELOG.md)
+
+          # Trim leading/trailing blank lines.
+          notes=$(printf '%s\n' "$notes" | sed -e '/./,$!d' | tac | sed -e '/./,$!d' | tac)
+
+          if [ -z "$notes" ]; then
+            # Don't invent notes — say so, and let GitHub generate from commits.
+            echo "::warning::no [$VERSION] section in CHANGELOG.md; falling back to generated notes"
+            gh release create "$TAG" --title "$TAG" --generate-notes
+          else
+            printf '%s\n' "$notes" | gh release create "$TAG" --title "$TAG" --notes-file -
+          fi
