@@ -8,6 +8,22 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ### Fixed
 
+- `dependabot-auto-merge.yml` — major bumps written without a minor component
+  slipped through the `workflow_run` path's gate and auto-merged. The title
+  heuristic required a dotted version
+  (`from ([0-9]+)\.[0-9]+ … to ([0-9]+)\.[0-9]+`), but the GitHub-Actions
+  ecosystem bumps bare majors — "Bump actions/setup-node from 6 to 7" — so the
+  regex never matched, `is_major` stayed `no`, and the majors-want-a-human
+  policy was bypassed. Seen live on HordiaLabs/fetcher-playwright #72
+  (setup-node 6 → 7).
+
+  The minor/patch part is now optional and a leading `v` is tolerated, so
+  `from 6 to 7` and `from v3 to v4` classify as major alongside the dotted
+  forms. Dotted behaviour is unchanged. Grouped updates still can't be
+  classified from the title and are still treated as non-major.
+
+  **Consumers pinning by SHA need a pin bump to pick this up.**
+
 - `elixir.yml` and `go.yml` — the Postgres readiness wait could pass before the
   server was actually accepting connections, so a consumer's first real
   connection intermittently failed with

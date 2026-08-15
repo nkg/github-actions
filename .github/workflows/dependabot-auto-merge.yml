@@ -116,9 +116,15 @@ jobs:
           set -euo pipefail
           title=$(gh pr view "$PR" --repo "$REPO" --json title --jq .title)
           is_major=no
-          # Match "... from X.Y.Z to A.B.C" and compare the major components.
-          if [[ "$title" =~ from[[:space:]]+([0-9]+)\.[0-9]+[^[:space:]]*[[:space:]]+to[[:space:]]+([0-9]+)\.[0-9]+ ]]; then
-            [ "${BASH_REMATCH[1]}" != "${BASH_REMATCH[2]}" ] && is_major=yes
+          # Match "... from <old> to <new>" and compare the major components.
+          # The minor/patch part is OPTIONAL: the GitHub-Actions ecosystem
+          # bumps bare majors ("from 6 to 7"), and requiring a dot there let
+          # major action bumps through as non-major. A leading "v" is also
+          # tolerated ("from v3 to v4") since some actions tag that way.
+          # Groups: 1 = old major, 3 = new major (2 and 4 are the optional
+          # minor parts).
+          if [[ "$title" =~ from[[:space:]]+v?([0-9]+)(\.[0-9]+)?[^[:space:]]*[[:space:]]+to[[:space:]]+v?([0-9]+)(\.[0-9]+)? ]]; then
+            [ "${BASH_REMATCH[1]}" != "${BASH_REMATCH[3]}" ] && is_major=yes
           fi
           echo "is_major=$is_major" >> "$GITHUB_OUTPUT"
 
