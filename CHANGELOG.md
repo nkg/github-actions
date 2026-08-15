@@ -6,6 +6,37 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ## [Unreleased]
 
+### Changed
+
+- `container-security.yml` — callers passing `upload-sarif: false` no longer
+  have to grant `security-events: write`. Same defect v2.14.0 fixed in
+  `trivy-repo.yml` (#49): the `trivy` job statically declared
+  `security-events: write` + `actions: read`, and because GitHub validates a
+  called workflow's declared job permissions at run creation — before any
+  `if:` is evaluated — the existing step-level `if: inputs.upload-sarif`
+  guards couldn't make the requirement conditional. Callers granting less hit
+  a `startup_failure`, so private repos without Advanced Security were forced
+  to authorise a permission the run never used.
+
+  The job now declares **no `permissions:` block** and inherits the caller's
+  grant. Callers with `upload-sarif: false` need `contents: read` alone.
+
+  Unlike `trivy-repo.yml`, the SARIF work is **not** split into a separate
+  job. There the split cost a second checkout; here it would cost a second
+  pull of every matrix image, and this workflow is explicitly built for a
+  fleet where disk is the binding constraint. The step-level `if:` guards
+  already skip the upload work — omitting the declaration was always the
+  load-bearing half of the fix, the split merely tidy.
+
+  Caller impact matches #49: `upload-sarif: true` callers need no change;
+  `upload-sarif: false` callers can drop `actions: read` and
+  `security-events: write`; job names are unchanged so branch protection is
+  unaffected; and a caller that opts in but forgets the scopes now fails at
+  the upload step (403) rather than at startup.
+
+  Covered by a new `integration-container-security-no-sarif` self-test job
+  calling the reusable with `contents: read` alone.
+
 ## [2.14.0] - 2026-08-15
 
 ### Changed

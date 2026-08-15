@@ -126,3 +126,21 @@ jobs:
       upload-sarif: false
       # Fixtures vendor node_modules; nothing here is IaC we want to gate on.
       skip-dirs: tests/fixtures
+
+  # Same regression test for container-security.yml, which had the identical
+  # defect: a caller opting out of the SARIF upload must run with
+  # `contents: read` ALONE. Deliberately does NOT grant actions:read /
+  # security-events:write, so re-adding a `permissions:` block to that
+  # workflow's trivy job fails here rather than in consumers.
+  #
+  # hello-world is used as the scan target because it's ~20kB and carries no
+  # CRITICAL/HIGH findings, so this job tests the permission contract rather
+  # than Trivy's verdict on some real image.
+  integration-container-security-no-sarif:
+    uses: ./.github/workflows/container-security.yml
+    permissions:
+      contents: read
+    with:
+      runs-on: '["ubuntu-latest"]'
+      image-list: hello-world:latest
+      upload-sarif: false
