@@ -388,6 +388,10 @@ on:
 jobs:
   trivy:
     uses: nkg/github-actions/.github/workflows/container-security.yml@v2
+    permissions:
+      contents: read
+      actions: read          # }- only needed while upload-sarif is true
+      security-events: write # }
     with:
       compose-file: docker-compose.yml
       runs-on: '["self-hosted", "linux", "x64"]'
@@ -399,11 +403,30 @@ Or scan an explicit list:
 jobs:
   trivy:
     uses: nkg/github-actions/.github/workflows/container-security.yml@v2
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
     with:
       image-list: |
         ghcr.io/nkg/api:latest
         ghcr.io/nkg/web:latest
 ```
+
+**Private repo without Advanced Security?** As with `trivy-repo.yml`, pass `upload-sarif: false` and `contents: read` is the only permission you need — the reusable declares none of its own, so it can't force the elevated scopes on you:
+
+```yaml
+jobs:
+  trivy:
+    uses: nkg/github-actions/.github/workflows/container-security.yml@v2
+    permissions:
+      contents: read
+    with:
+      compose-file: docker-compose.yml
+      upload-sarif: false
+```
+
+> Grant the two extra scopes whenever `upload-sarif` is `true`. Because the reusable no longer declares them itself, forgetting them fails at the upload step (403) rather than at startup, which is easier to miss.
 
 ### Trivy repo scan (filesystem + IaC)
 

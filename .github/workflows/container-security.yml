@@ -4,6 +4,31 @@ name: Container security scan (Trivy)
 # image-list input). Generalised from sproncy-distillery's security-scan.yml.
 # Disk-hygiene: removes each image from the runner after scanning, since on
 # the self-hosted fleet disk space is the binding constraint.
+#
+# Caller permissions — grant only what the run actually uses:
+#
+#   upload-sarif: false        upload-sarif: true (default)
+#   ------------------------   ---------------------------------
+#   permissions:               permissions:
+#     contents: read             contents: read
+#                                actions: read
+#                                security-events: write
+#
+# The `trivy` job deliberately declares NO `permissions:` block, so it
+# inherits whatever the caller granted. GitHub validates a called workflow's
+# declared job permissions statically at run creation, BEFORE any `if:` is
+# evaluated — so declaring `security-events: write` here, even though every
+# SARIF step is guarded by `if: inputs.upload-sarif`, would force every
+# caller to grant it. Consumers on private repos without Advanced Security
+# pass `upload-sarif: false` precisely because the upload 403s, and were
+# being made to authorise a permission the run never used.
+#
+# Unlike trivy-repo.yml, the SARIF work is NOT split into a separate job.
+# There it is a second checkout; here it would be a second pull of every
+# matrix image, and this workflow exists on a fleet where disk is the
+# binding constraint (see above). The step-level `if:` guards already skip
+# the upload work, so the omission alone is what makes the permission
+# optional — the split was never the load-bearing part of that fix.
 
 on:
   workflow_call:
@@ -29,7 +54,11 @@ on:
         type: boolean
         default: true
       upload-sarif:
-        description: "Upload SARIF to the GitHub Security tab. Auto-skipped on pull_request (fork PRs can't write security-events)."
+        description: |
+          Upload SARIF to the GitHub Security tab. Auto-skipped on
+          pull_request (fork PRs can't write security-events). When true the
+          caller must grant `security-events: write` + `actions: read`; when
+          false `contents: read` alone is enough (see the header).
         type: boolean
         default: true
       trivy-action-version:
@@ -82,13 +111,13 @@ jobs:
     needs: extract-images
     runs-on: ${{ fromJSON(inputs.runs-on) }}
     timeout-minutes: ${{ inputs.timeout-minutes }}
-    # Declaring `permissions:` drops the default scope, so every needed
-    # perm has to be listed explicitly. security-events:write +
-    # actions:read are required by github/codeql-action/upload-sarif.
-    permissions:
-      contents: read
-      actions: read
-      security-events: write
+    # No `permissions:` block on purpose — it inherits the caller's grant.
+    # See the header: a static declaration here is validated before the
+    # SARIF steps' `if:` guards are evaluated, so it would make
+    # `security-events: write` mandatory for every caller including those
+    # passing `upload-sarif: false`. github/codeql-action/upload-sarif needs
+    # security-events:write + actions:read; the caller supplies them when it
+    # opts in.
     strategy:
       fail-fast: false
       matrix:
