@@ -8,30 +8,47 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ### Changed
 
-- `trivy-repo.yml` — the SARIF upload moved into its own `sarif-upload` job so
-  callers passing `upload-sarif: false` no longer have to grant
-  `security-events: write`. Job-level `permissions:` can't be conditional, so
-  while the scan and the upload shared one job the reusable statically declared
-  `security-events: write` + `actions: read` — and a caller that granted less
-  hit a `startup_failure` ("requests more than the caller allows"). Private
-  repos without Advanced Security were therefore forced to authorise a
-  permission the run never used, precisely the runs that opt out because the
-  upload 403s. Observed in `HordiaLabs/fetcher-camoufox`.
+- `trivy-repo.yml` — callers passing `upload-sarif: false` no longer have to
+  grant `security-events: write`. The `trivy` job statically declared
+  `security-events: write` + `actions: read` because the upload step needs
+  them, so a caller granting less hit a `startup_failure` ("requests more than
+  the caller allows"). Private repos without Advanced Security were therefore
+  forced to authorise a permission the run never used — precisely the runs
+  that opt out because the upload 403s. Observed in
+  `HordiaLabs/fetcher-camoufox`.
 
-  Now the `trivy` job declares only `contents: read`, and `sarif-upload`
-  (`if: inputs.upload-sarif && github.event_name != 'pull_request'`) is the
-  only job declaring the elevated perms. Callers with `upload-sarif: false`
-  need `contents: read` alone.
+  The SARIF scan + upload moved into a separate `sarif-upload` job
+  (`if: inputs.upload-sarif && github.event_name != 'pull_request'`), and that
+  job declares **no `permissions:` block at all** — it inherits the caller's.
+  The omission is the actual fix, not the split: GitHub validates a called
+  workflow's declared job permissions statically at run creation, *before* any
+  `if:` is evaluated, so simply moving the declaration behind a condition
+  still binds every caller. Splitting the jobs is what makes the work skippable;
+  omitting the declaration is what makes the permission optional. Both are
+  needed.
+
+  The `trivy` job keeps a static `contents: read` — that one every caller can
+  satisfy, so it stays pinned rather than inherited.
 
   The two jobs run in parallel rather than `needs:`-chained, preserving the
   old `if: always()` behaviour where findings reach the Security tab even when
   the table scan fails the build. Same number of Trivy invocations as before
   (the scan already ran twice, table then SARIF), now one per job.
 
-  **Not breaking for callers with `upload-sarif: true`** — the grant they
-  already have is a superset. **Callers with `upload-sarif: false` can now
-  drop `actions: read` / `security-events: write`.** Branch protection is
-  unaffected: the `trivy` job keeps its name. (#49)
+  Caller impact:
+  - `upload-sarif: true` — **no action needed**; keep granting `contents: read`,
+    `actions: read`, `security-events: write`.
+  - `upload-sarif: false` — **you can now drop `actions: read` and
+    `security-events: write`** and grant `contents: read` alone.
+  - Branch protection is unaffected — the `trivy` job keeps its name.
+  - One regression: a caller that sets `upload-sarif: true` but forgets the
+    extra scopes now fails at the upload step (403) rather than at startup.
+    The scan still runs and still gates, so the blast radius is smaller, but
+    the error surfaces later.
+
+  Covered by a new `integration-trivy-no-sarif` self-test job that calls the
+  reusable with `contents: read` alone, so a future `permissions:` block on
+  `sarif-upload` fails CI instead of consumers. (#49)
 
 ### Fixed
 

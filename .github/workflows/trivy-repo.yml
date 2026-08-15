@@ -17,13 +17,16 @@ name: Trivy repo scan (filesystem + IaC)
 #                                actions: read
 #                                security-events: write
 #
-# The SARIF upload lives in its own `sarif-upload` job so that
-# `security-events: write` is declared only there. Job-level `permissions:`
-# can't be conditional, so when the scan and the upload shared one job every
-# caller had to grant `security-events: write` — including private repos
-# without Advanced Security, which pass `upload-sarif: false` precisely
-# because the upload 403s. They were forced to authorise a permission the
-# run never legitimately used.
+# The SARIF upload lives in its own `sarif-upload` job, and that job declares
+# no `permissions:` at all — it inherits the caller's. This is the only
+# arrangement that lets the requirement be conditional: GitHub validates a
+# called workflow's declared job permissions statically at run creation,
+# before any `if:` runs, so a declaration behind a condition still binds every
+# caller. Previously the scan and the upload shared one job that declared
+# `security-events: write`, which forced every caller to grant it — including
+# private repos without Advanced Security, which pass `upload-sarif: false`
+# precisely because the upload 403s, and were made to authorise a permission
+# the run never used. See the `sarif-upload` job for the full reasoning.
 #
 # The two jobs run in parallel rather than `needs:`-chained: the SARIF upload
 # is deliberately independent of the scan's pass/fail (findings should reach
@@ -112,18 +115,34 @@ jobs:
           skip-dirs: ${{ inputs.skip-dirs }}
           skip-files: ${{ inputs.skip-files }}
 
-  # The only job that needs security-events:write. Skipped entirely when the
-  # caller opts out, so an opted-out caller never has to grant it.
+  # The SARIF upload. github/codeql-action/upload-sarif needs
+  # security-events:write + actions:read — but this job deliberately declares
+  # NO `permissions:` block, and that omission is the whole fix for #49.
+  #
+  # GitHub validates a called workflow's job-level `permissions:` statically,
+  # when the run is created — BEFORE any `if:` is evaluated. A skipped job's
+  # declaration is still checked. (Verified empirically: this workflow, called
+  # with `upload-sarif: false` and only `contents: read` granted,
+  # startup_failure'd while this job declared the elevated perms, and the same
+  # commit succeeded once the caller granted them — see the PR for #49.) So
+  # declaring them here, even behind the `if:` below, would still force every
+  # caller to grant them, which is exactly the bug.
+  #
+  # With no `permissions:` key there is nothing to validate, so the job simply
+  # inherits whatever the caller granted its job. Callers passing
+  # `upload-sarif: false` grant `contents: read` and this job never runs;
+  # callers passing `upload-sarif: true` grant the two extra scopes and it
+  # does. Least privilege is therefore expressed by the CALLER (see header)
+  # rather than pinned here — the only arrangement that can be conditional.
+  #
+  # Trade-off: a caller that sets `upload-sarif: true` but forgets the extra
+  # scopes now fails at the upload step (403) instead of at startup. The scan
+  # job still runs and still gates, so the failure is narrower, but it is
+  # later and less obvious than the old startup_failure.
   sarif-upload:
     if: ${{ inputs.upload-sarif && github.event_name != 'pull_request' }}
     runs-on: ${{ fromJSON(inputs.runs-on) }}
     timeout-minutes: ${{ inputs.timeout-minutes }}
-    # security-events:write + actions:read are required by
-    # github/codeql-action/upload-sarif.
-    permissions:
-      contents: read
-      actions: read
-      security-events: write
     steps:
       # Duplicated from the trivy job: these run in parallel, so this job
       # can't lean on the other having validated the input first.

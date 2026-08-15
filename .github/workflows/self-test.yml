@@ -91,23 +91,25 @@ jobs:
       runs-on: '["ubuntu-latest"]'
       working-directory: tests/fixtures/node-bun
 
-  # Regression test for the trivy-repo.yml permission split (#49): a caller
-  # that opts out of the SARIF upload must be able to run with `contents:
-  # read` ALONE. If the `security-events: write` on the reusable's
-  # `sarif-upload` job were ever validated against this grant — because the
-  # job stopped being skipped, or because the two got merged back into one —
-  # this job would die with a startup_failure ("is requesting
-  # 'security-events: write', but is only allowed 'security-events: none'")
-  # instead of running. Deliberately does NOT grant the extra perms.
+  # Regression test for the trivy-repo.yml permission fix (#49): a caller that
+  # opts out of the SARIF upload must be able to run with `contents: read`
+  # ALONE. Deliberately does NOT grant actions:read / security-events:write.
+  #
+  # This guards a genuinely non-obvious constraint. Called-workflow job
+  # permissions are validated statically at run creation, before any `if:` is
+  # evaluated, so it is not enough for the privileged job to be skipped — it
+  # must not DECLARE the permissions either. The moment anyone adds a
+  # `permissions:` block to trivy-repo.yml's `sarif-upload` job (an obvious
+  # "hardening" tidy-up), every opted-out caller breaks. This job catches that
+  # immediately: it dies at startup_failure rather than running.
+  #
+  # Note the PR run only exercises the `github.event_name != 'pull_request'`
+  # half of the skip; the `upload-sarif: false` half is covered by the same
+  # job on the post-merge push to main.
   integration-trivy-no-sarif:
     uses: ./.github/workflows/trivy-repo.yml
     permissions:
       contents: read
-      # TEMPORARY (experiment, to be reverted): granting the perms the
-      # sarif-upload job declares, to confirm whether the startup_failure is
-      # permission validation or something else in the YAML.
-      actions: read
-      security-events: write
     with:
       runs-on: '["ubuntu-latest"]'
       scan-type: config
