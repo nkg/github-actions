@@ -6,6 +6,32 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ## [Unreleased]
 
+### Fixed
+
+- `elixir.yml` and `go.yml` — the Postgres readiness wait could pass before the
+  server was actually accepting connections, so a consumer's first real
+  connection intermittently failed with
+  `FATAL 57P03 (cannot_connect_now) the database system is starting up`
+  (seen downstream as `mix ecto.create` failing before any test ran).
+
+  The probe was `docker exec ci-postgres pg_isready -U … -d …` with **no
+  `-h`**, so it went over the Unix socket. On first init the postgres image
+  starts a *temporary* server to run `initdb` and any init scripts, then stops
+  it and starts the real one — and upstream starts that temporary server with
+  `listen_addresses=''` ("does not listen on external TCP/IP",
+  `docker-entrypoint.sh` → `docker_temp_server_start`). The socket probe
+  therefore succeeded against the temporary server, the wait exited early, and
+  the restart window was left exposed. Nothing was wrong with the timeout — the
+  probe was answering about the wrong server.
+
+  Both workflows now probe TCP (`-h 127.0.0.1 -p 5432`), which cannot pass
+  early, since `pg_isready` exits 1 ("rejecting connections") for the whole
+  restart window. They then confirm with one real `SELECT 1`, because
+  `pg_isready` reports listener state rather than query-ability. The cap moved
+  30s → 60s to accommodate the genuine two-phase startup, and a failure now
+  dumps `docker logs` here rather than surfacing inside a consumer's migration
+  or test step, where the cause is much harder to read.
+
 ## [2.13.0] - 2026-06-29
 
 ### Added
