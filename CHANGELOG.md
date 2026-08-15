@@ -6,6 +6,8 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ## [Unreleased]
 
+## [2.14.0] - 2026-08-15
+
 ### Changed
 
 - `trivy-repo.yml` — callers passing `upload-sarif: false` no longer have to
@@ -67,6 +69,10 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
   classified from the title and are still treated as non-major.
 
   **Consumers pinning by SHA need a pin bump to pick this up.**
+
+## [2.13.1] - 2026-08-15
+
+### Fixed
 
 - `elixir.yml` and `go.yml` — the Postgres readiness wait could pass before the
   server was actually accepting connections, so a consumer's first real
@@ -779,7 +785,13 @@ README; everything below is the actual content of this repo.
 - Bumped `actions/checkout` from `@v4` to `@v6` across all existing
   workflows for consistency with new files.
 
-[Unreleased]: https://github.com/nkg/github-actions/compare/v2.11.0...HEAD
+[Unreleased]: https://github.com/nkg/github-actions/compare/v2.14.0...HEAD
+[2.14.0]: https://github.com/nkg/github-actions/compare/v2.13.1...v2.14.0
+[2.13.1]: https://github.com/nkg/github-actions/compare/v2.13.0...v2.13.1
+[2.13.0]: https://github.com/nkg/github-actions/compare/v2.12.2...v2.13.0
+[2.12.2]: https://github.com/nkg/github-actions/compare/v2.12.1...v2.12.2
+[2.12.1]: https://github.com/nkg/github-actions/compare/v2.12.0...v2.12.1
+[2.12.0]: https://github.com/nkg/github-actions/compare/v2.11.0...v2.12.0
 [2.11.0]: https://github.com/nkg/github-actions/compare/v2.10.0...v2.11.0
 [2.10.0]: https://github.com/nkg/github-actions/compare/v2.9.0...v2.10.0
 [2.9.0]: https://github.com/nkg/github-actions/compare/v2.8.0...v2.9.0
