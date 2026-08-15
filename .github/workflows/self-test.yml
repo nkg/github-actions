@@ -103,6 +103,11 @@ jobs:
     uses: ./.github/workflows/trivy-repo.yml
     permissions:
       contents: read
+      # TEMPORARY (experiment, to be reverted): granting the perms the
+      # sarif-upload job declares, to confirm whether the startup_failure is
+      # permission validation or something else in the YAML.
+      actions: read
+      security-events: write
     with:
       runs-on: '["ubuntu-latest"]'
       scan-type: config
