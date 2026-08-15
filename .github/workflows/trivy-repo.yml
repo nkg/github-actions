@@ -7,6 +7,31 @@ name: Trivy repo scan (filesystem + IaC)
 # This is the complement to container-security.yml, which scans built
 # images. tfsec is intentionally not used here — Aqua merged tfsec into
 # Trivy, and `scan-type: config` is the maintained successor.
+#
+# Caller permissions — grant only what the run actually uses:
+#
+#   upload-sarif: false        upload-sarif: true (default)
+#   ------------------------   ---------------------------------
+#   permissions:               permissions:
+#     contents: read             contents: read
+#                                actions: read
+#                                security-events: write
+#
+# The SARIF upload lives in its own `sarif-upload` job, and that job declares
+# no `permissions:` at all — it inherits the caller's. This is the only
+# arrangement that lets the requirement be conditional: GitHub validates a
+# called workflow's declared job permissions statically at run creation,
+# before any `if:` runs, so a declaration behind a condition still binds every
+# caller. Previously the scan and the upload shared one job that declared
+# `security-events: write`, which forced every caller to grant it — including
+# private repos without Advanced Security, which pass `upload-sarif: false`
+# precisely because the upload 403s, and were made to authorise a permission
+# the run never used. See the `sarif-upload` job for the full reasoning.
+#
+# The two jobs run in parallel rather than `needs:`-chained: the SARIF upload
+# is deliberately independent of the scan's pass/fail (findings should reach
+# the Security tab even when the table scan fails the build, which is what
+# the previous `if: always()` steps did).
 
 on:
   workflow_call:
@@ -40,7 +65,11 @@ on:
         type: string
         default: "."
       upload-sarif:
-        description: "Upload SARIF to the GitHub Security tab. Auto-skipped on pull_request (fork PRs can't write security-events)."
+        description: |
+          Upload SARIF to the GitHub Security tab. Auto-skipped on
+          pull_request (fork PRs can't write security-events). When true the
+          caller must grant `security-events: write` + `actions: read`; when
+          false `contents: read` alone is enough (see the header).
         type: boolean
         default: true
       trivy-action-version:
@@ -52,15 +81,13 @@ on:
         default: 15
 
 jobs:
+  # Scan + gate. Never touches the Security tab, so `contents: read` is the
+  # whole permission surface — see the header for why this is split out.
   trivy:
     runs-on: ${{ fromJSON(inputs.runs-on) }}
     timeout-minutes: ${{ inputs.timeout-minutes }}
-    # security-events:write + actions:read are required by
-    # github/codeql-action/upload-sarif.
     permissions:
       contents: read
-      actions: read
-      security-events: write
     steps:
       - name: Validate scan-type
         env:
@@ -88,8 +115,49 @@ jobs:
           skip-dirs: ${{ inputs.skip-dirs }}
           skip-files: ${{ inputs.skip-files }}
 
+  # The SARIF upload. github/codeql-action/upload-sarif needs
+  # security-events:write + actions:read — but this job deliberately declares
+  # NO `permissions:` block, and that omission is the whole fix for #49.
+  #
+  # GitHub validates a called workflow's job-level `permissions:` statically,
+  # when the run is created — BEFORE any `if:` is evaluated. A skipped job's
+  # declaration is still checked. (Verified empirically: this workflow, called
+  # with `upload-sarif: false` and only `contents: read` granted,
+  # startup_failure'd while this job declared the elevated perms, and the same
+  # commit succeeded once the caller granted them — see the PR for #49.) So
+  # declaring them here, even behind the `if:` below, would still force every
+  # caller to grant them, which is exactly the bug.
+  #
+  # With no `permissions:` key there is nothing to validate, so the job simply
+  # inherits whatever the caller granted its job. Callers passing
+  # `upload-sarif: false` grant `contents: read` and this job never runs;
+  # callers passing `upload-sarif: true` grant the two extra scopes and it
+  # does. Least privilege is therefore expressed by the CALLER (see header)
+  # rather than pinned here — the only arrangement that can be conditional.
+  #
+  # Trade-off: a caller that sets `upload-sarif: true` but forgets the extra
+  # scopes now fails at the upload step (403) instead of at startup. The scan
+  # job still runs and still gates, so the failure is narrower, but it is
+  # later and less obvious than the old startup_failure.
+  sarif-upload:
+    if: ${{ inputs.upload-sarif && github.event_name != 'pull_request' }}
+    runs-on: ${{ fromJSON(inputs.runs-on) }}
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    steps:
+      # Duplicated from the trivy job: these run in parallel, so this job
+      # can't lean on the other having validated the input first.
+      - name: Validate scan-type
+        env:
+          SCAN_TYPE: ${{ inputs.scan-type }}
+        run: |
+          case "$SCAN_TYPE" in
+            fs|config) ;;
+            *) echo "::error::invalid scan-type: $SCAN_TYPE (expected fs|config)"; exit 1 ;;
+          esac
+
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
       - name: Trivy scan (SARIF)
-        if: always() && inputs.upload-sarif && github.event_name != 'pull_request'
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: ${{ inputs.scan-type }}
@@ -102,7 +170,6 @@ jobs:
           skip-files: ${{ inputs.skip-files }}
 
       - name: Upload SARIF
-        if: always() && inputs.upload-sarif && github.event_name != 'pull_request'
         uses: github/codeql-action/upload-sarif@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
         with:
           sarif_file: trivy-${{ inputs.scan-type }}.sarif
