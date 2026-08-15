@@ -6,6 +6,8 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ## [Unreleased]
 
+## [2.15.0] - 2026-08-15
+
 ### Changed
 
 - `container-security.yml` — callers passing `upload-sarif: false` no longer
@@ -816,7 +818,8 @@ README; everything below is the actual content of this repo.
 - Bumped `actions/checkout` from `@v4` to `@v6` across all existing
   workflows for consistency with new files.
 
-[Unreleased]: https://github.com/nkg/github-actions/compare/v2.14.0...HEAD
+[Unreleased]: https://github.com/nkg/github-actions/compare/v2.15.0...HEAD
+[2.15.0]: https://github.com/nkg/github-actions/compare/v2.14.0...v2.15.0
 [2.14.0]: https://github.com/nkg/github-actions/compare/v2.13.1...v2.14.0
 [2.13.1]: https://github.com/nkg/github-actions/compare/v2.13.0...v2.13.1
 [2.13.0]: https://github.com/nkg/github-actions/compare/v2.12.2...v2.13.0
