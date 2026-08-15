@@ -6,6 +6,72 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ## [Unreleased]
 
+## [2.14.0] - 2026-08-15
+
+### Changed
+
+- `trivy-repo.yml` — callers passing `upload-sarif: false` no longer have to
+  grant `security-events: write`. The `trivy` job statically declared
+  `security-events: write` + `actions: read` because the upload step needs
+  them, so a caller granting less hit a `startup_failure` ("requests more than
+  the caller allows"). Private repos without Advanced Security were therefore
+  forced to authorise a permission the run never used — precisely the runs
+  that opt out because the upload 403s. Observed in
+  `HordiaLabs/fetcher-camoufox`.
+
+  The SARIF scan + upload moved into a separate `sarif-upload` job
+  (`if: inputs.upload-sarif && github.event_name != 'pull_request'`), and that
+  job declares **no `permissions:` block at all** — it inherits the caller's.
+  The omission is the actual fix, not the split: GitHub validates a called
+  workflow's declared job permissions statically at run creation, *before* any
+  `if:` is evaluated, so simply moving the declaration behind a condition
+  still binds every caller. Splitting the jobs is what makes the work skippable;
+  omitting the declaration is what makes the permission optional. Both are
+  needed.
+
+  The `trivy` job keeps a static `contents: read` — that one every caller can
+  satisfy, so it stays pinned rather than inherited.
+
+  The two jobs run in parallel rather than `needs:`-chained, preserving the
+  old `if: always()` behaviour where findings reach the Security tab even when
+  the table scan fails the build. Same number of Trivy invocations as before
+  (the scan already ran twice, table then SARIF), now one per job.
+
+  Caller impact:
+  - `upload-sarif: true` — **no action needed**; keep granting `contents: read`,
+    `actions: read`, `security-events: write`.
+  - `upload-sarif: false` — **you can now drop `actions: read` and
+    `security-events: write`** and grant `contents: read` alone.
+  - Branch protection is unaffected — the `trivy` job keeps its name.
+  - One regression: a caller that sets `upload-sarif: true` but forgets the
+    extra scopes now fails at the upload step (403) rather than at startup.
+    The scan still runs and still gates, so the blast radius is smaller, but
+    the error surfaces later.
+
+  Covered by a new `integration-trivy-no-sarif` self-test job that calls the
+  reusable with `contents: read` alone, so a future `permissions:` block on
+  `sarif-upload` fails CI instead of consumers. (#49)
+
+### Fixed
+
+- `dependabot-auto-merge.yml` — major bumps written without a minor component
+  slipped through the `workflow_run` path's gate and auto-merged. The title
+  heuristic required a dotted version
+  (`from ([0-9]+)\.[0-9]+ … to ([0-9]+)\.[0-9]+`), but the GitHub-Actions
+  ecosystem bumps bare majors — "Bump actions/setup-node from 6 to 7" — so the
+  regex never matched, `is_major` stayed `no`, and the majors-want-a-human
+  policy was bypassed. Seen live on HordiaLabs/fetcher-playwright #72
+  (setup-node 6 → 7).
+
+  The minor/patch part is now optional and a leading `v` is tolerated, so
+  `from 6 to 7` and `from v3 to v4` classify as major alongside the dotted
+  forms. Dotted behaviour is unchanged. Grouped updates still can't be
+  classified from the title and are still treated as non-major.
+
+  **Consumers pinning by SHA need a pin bump to pick this up.**
+
+## [2.13.1] - 2026-08-15
+
 ### Fixed
 
 - `elixir.yml` and `go.yml` — the Postgres readiness wait could pass before the
@@ -719,7 +785,13 @@ README; everything below is the actual content of this repo.
 - Bumped `actions/checkout` from `@v4` to `@v6` across all existing
   workflows for consistency with new files.
 
-[Unreleased]: https://github.com/nkg/github-actions/compare/v2.11.0...HEAD
+[Unreleased]: https://github.com/nkg/github-actions/compare/v2.14.0...HEAD
+[2.14.0]: https://github.com/nkg/github-actions/compare/v2.13.1...v2.14.0
+[2.13.1]: https://github.com/nkg/github-actions/compare/v2.13.0...v2.13.1
+[2.13.0]: https://github.com/nkg/github-actions/compare/v2.12.2...v2.13.0
+[2.12.2]: https://github.com/nkg/github-actions/compare/v2.12.1...v2.12.2
+[2.12.1]: https://github.com/nkg/github-actions/compare/v2.12.0...v2.12.1
+[2.12.0]: https://github.com/nkg/github-actions/compare/v2.11.0...v2.12.0
 [2.11.0]: https://github.com/nkg/github-actions/compare/v2.10.0...v2.11.0
 [2.10.0]: https://github.com/nkg/github-actions/compare/v2.9.0...v2.10.0
 [2.9.0]: https://github.com/nkg/github-actions/compare/v2.8.0...v2.9.0
