@@ -6,6 +6,33 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ## [Unreleased]
 
+### Changed
+
+- `trivy-repo.yml` — the SARIF upload moved into its own `sarif-upload` job so
+  callers passing `upload-sarif: false` no longer have to grant
+  `security-events: write`. Job-level `permissions:` can't be conditional, so
+  while the scan and the upload shared one job the reusable statically declared
+  `security-events: write` + `actions: read` — and a caller that granted less
+  hit a `startup_failure` ("requests more than the caller allows"). Private
+  repos without Advanced Security were therefore forced to authorise a
+  permission the run never used, precisely the runs that opt out because the
+  upload 403s. Observed in `HordiaLabs/fetcher-camoufox`.
+
+  Now the `trivy` job declares only `contents: read`, and `sarif-upload`
+  (`if: inputs.upload-sarif && github.event_name != 'pull_request'`) is the
+  only job declaring the elevated perms. Callers with `upload-sarif: false`
+  need `contents: read` alone.
+
+  The two jobs run in parallel rather than `needs:`-chained, preserving the
+  old `if: always()` behaviour where findings reach the Security tab even when
+  the table scan fails the build. Same number of Trivy invocations as before
+  (the scan already ran twice, table then SARIF), now one per job.
+
+  **Not breaking for callers with `upload-sarif: true`** — the grant they
+  already have is a superset. **Callers with `upload-sarif: false` can now
+  drop `actions: read` / `security-events: write`.** Branch protection is
+  unaffected: the `trivy` job keeps its name. (#49)
+
 ### Fixed
 
 - `elixir.yml` and `go.yml` — the Postgres readiness wait could pass before the

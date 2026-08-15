@@ -7,6 +7,28 @@ name: Trivy repo scan (filesystem + IaC)
 # This is the complement to container-security.yml, which scans built
 # images. tfsec is intentionally not used here — Aqua merged tfsec into
 # Trivy, and `scan-type: config` is the maintained successor.
+#
+# Caller permissions — grant only what the run actually uses:
+#
+#   upload-sarif: false        upload-sarif: true (default)
+#   ------------------------   ---------------------------------
+#   permissions:               permissions:
+#     contents: read             contents: read
+#                                actions: read
+#                                security-events: write
+#
+# The SARIF upload lives in its own `sarif-upload` job so that
+# `security-events: write` is declared only there. Job-level `permissions:`
+# can't be conditional, so when the scan and the upload shared one job every
+# caller had to grant `security-events: write` — including private repos
+# without Advanced Security, which pass `upload-sarif: false` precisely
+# because the upload 403s. They were forced to authorise a permission the
+# run never legitimately used.
+#
+# The two jobs run in parallel rather than `needs:`-chained: the SARIF upload
+# is deliberately independent of the scan's pass/fail (findings should reach
+# the Security tab even when the table scan fails the build, which is what
+# the previous `if: always()` steps did).
 
 on:
   workflow_call:
@@ -40,7 +62,11 @@ on:
         type: string
         default: "."
       upload-sarif:
-        description: "Upload SARIF to the GitHub Security tab. Auto-skipped on pull_request (fork PRs can't write security-events)."
+        description: |
+          Upload SARIF to the GitHub Security tab. Auto-skipped on
+          pull_request (fork PRs can't write security-events). When true the
+          caller must grant `security-events: write` + `actions: read`; when
+          false `contents: read` alone is enough (see the header).
         type: boolean
         default: true
       trivy-action-version:
@@ -52,15 +78,13 @@ on:
         default: 15
 
 jobs:
+  # Scan + gate. Never touches the Security tab, so `contents: read` is the
+  # whole permission surface — see the header for why this is split out.
   trivy:
     runs-on: ${{ fromJSON(inputs.runs-on) }}
     timeout-minutes: ${{ inputs.timeout-minutes }}
-    # security-events:write + actions:read are required by
-    # github/codeql-action/upload-sarif.
     permissions:
       contents: read
-      actions: read
-      security-events: write
     steps:
       - name: Validate scan-type
         env:
@@ -88,8 +112,33 @@ jobs:
           skip-dirs: ${{ inputs.skip-dirs }}
           skip-files: ${{ inputs.skip-files }}
 
+  # The only job that needs security-events:write. Skipped entirely when the
+  # caller opts out, so an opted-out caller never has to grant it.
+  sarif-upload:
+    if: ${{ inputs.upload-sarif && github.event_name != 'pull_request' }}
+    runs-on: ${{ fromJSON(inputs.runs-on) }}
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    # security-events:write + actions:read are required by
+    # github/codeql-action/upload-sarif.
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
+    steps:
+      # Duplicated from the trivy job: these run in parallel, so this job
+      # can't lean on the other having validated the input first.
+      - name: Validate scan-type
+        env:
+          SCAN_TYPE: ${{ inputs.scan-type }}
+        run: |
+          case "$SCAN_TYPE" in
+            fs|config) ;;
+            *) echo "::error::invalid scan-type: $SCAN_TYPE (expected fs|config)"; exit 1 ;;
+          esac
+
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
       - name: Trivy scan (SARIF)
-        if: always() && inputs.upload-sarif && github.event_name != 'pull_request'
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: ${{ inputs.scan-type }}
@@ -102,7 +151,6 @@ jobs:
           skip-files: ${{ inputs.skip-files }}
 
       - name: Upload SARIF
-        if: always() && inputs.upload-sarif && github.event_name != 'pull_request'
         uses: github/codeql-action/upload-sarif@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
         with:
           sarif_file: trivy-${{ inputs.scan-type }}.sarif

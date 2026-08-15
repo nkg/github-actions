@@ -420,15 +420,36 @@ on:
 jobs:
   fs:
     uses: nkg/github-actions/.github/workflows/trivy-repo.yml@v2
+    permissions:
+      contents: read
+      actions: read          # }- only needed while upload-sarif is true
+      security-events: write # }
     with:
       scan-type: fs
   config:
     uses: nkg/github-actions/.github/workflows/trivy-repo.yml@v2
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
     with:
       scan-type: config
       skip-dirs: |
         node_modules
         .terraform
+```
+
+**Private repo without Advanced Security?** The SARIF upload 403s there, so pass `upload-sarif: false` — and then `contents: read` is the *only* permission you need. The upload lives in its own `sarif-upload` job that is skipped outright when you opt out, so you're never asked to grant `security-events: write` for a run that won't use it:
+
+```yaml
+jobs:
+  fs:
+    uses: nkg/github-actions/.github/workflows/trivy-repo.yml@v2
+    permissions:
+      contents: read
+    with:
+      scan-type: fs
+      upload-sarif: false
 ```
 
 ### SOPS audit

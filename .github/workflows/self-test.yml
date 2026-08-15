@@ -90,3 +90,22 @@ jobs:
     with:
       runs-on: '["ubuntu-latest"]'
       working-directory: tests/fixtures/node-bun
+
+  # Regression test for the trivy-repo.yml permission split (#49): a caller
+  # that opts out of the SARIF upload must be able to run with `contents:
+  # read` ALONE. If the `security-events: write` on the reusable's
+  # `sarif-upload` job were ever validated against this grant — because the
+  # job stopped being skipped, or because the two got merged back into one —
+  # this job would die with a startup_failure ("is requesting
+  # 'security-events: write', but is only allowed 'security-events: none'")
+  # instead of running. Deliberately does NOT grant the extra perms.
+  integration-trivy-no-sarif:
+    uses: ./.github/workflows/trivy-repo.yml
+    permissions:
+      contents: read
+    with:
+      runs-on: '["ubuntu-latest"]'
+      scan-type: config
+      upload-sarif: false
+      # Fixtures vendor node_modules; nothing here is IaC we want to gate on.
+      skip-dirs: tests/fixtures
