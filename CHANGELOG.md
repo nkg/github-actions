@@ -6,6 +6,38 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ## [Unreleased]
 
+### Added
+
+- `elixir.yml` — `run-hex-advisory-check` (+ `hex-advisory-ignore`), a
+  dependency-advisory gate that reads Hex's own resolver output instead of
+  `mix_audit`'s mirror.
+
+  `run-deps-audit` alone is not a sound gate. `mix_audit` resolves advisories
+  from exactly one source — `mirego/elixir-security-advisories`, itself a sync
+  of the GitHub Advisory Database — and anything that has not reached that
+  mirror is not reported, at all. Observed on a consumer repo: `mix deps.audit`
+  printed `No vulnerabilities found.` against a `mix.lock` that Hex flagged for
+  three advisories, one of them HIGH (bandit `EEF-CVE-2026-74836`). The mirror
+  clone was fully up to date, so this is not staleness that a fresh checkout or
+  a cache-bust would fix — the advisories were simply not in the mirror.
+
+  A security gate that reports green off data it never had is worse than no
+  gate, because CI is trusted. Hex queries the live feed on every resolution,
+  so the new check is current by construction. It parses the `VULNERABLE!`
+  blocks `mix deps.get` prints, fails on any advisory not listed in
+  `hex-advisory-ignore`, and — deliberately — fails *loudly* if Hex reports
+  advisories that the parser cannot read, rather than passing quietly the way
+  the tool it replaces did.
+
+  `hex-advisory-ignore` matches the primary id or any `aka:` alias, so the
+  GHSA ids already used with `mix_audit`'s `--ignore-advisory-ids` can be
+  reused verbatim. Ignored advisories are still printed as notices.
+
+  Off by default. Enabling it can red-line a repo whose deps carry an
+  untriaged advisory, so adoption is per-repo and deliberate. Keep
+  `run-deps-audit` on alongside it — the two sources are complementary, and
+  neither is a superset of the other.
+
 ## [2.15.0] - 2026-08-15
 
 ### Changed

@@ -60,8 +60,46 @@ on:
         description: |
           Run `mix deps.audit` (mix_audit) to scan mix.lock for deps with
           known CVEs. Requires the consumer to depend on {:mix_audit, ...}.
+
+          NOTE: this is not a complete gate on its own — mix_audit reads only
+          the mirego/elixir-security-advisories mirror, which lags the feed Hex
+          itself queries. Pair it with run-hex-advisory-check.
         type: boolean
         default: false
+      run-hex-advisory-check:
+        description: |
+          Fail the build when Hex's own resolver reports a security advisory
+          against a resolved dependency (the `VULNERABLE!` markers it prints
+          during `mix deps.get`).
+
+          Why this exists alongside run-deps-audit: mix_audit resolves
+          advisories from a single mirror (mirego/elixir-security-advisories,
+          synced from the GitHub Advisory Database). That mirror lags, and
+          advisories that never reach it are never reported at all — so
+          `mix deps.audit` can print "No vulnerabilities found." while Hex
+          flags a HIGH against the very same mix.lock. A gate that returns
+          green off stale data is worse than no gate, because it is trusted.
+          Hex queries the live feed on every resolution, so this check is
+          current by construction.
+
+          Off by default: switching it on can red-line a repo whose deps carry
+          an advisory nobody has triaged yet. Turn it on deliberately, and use
+          hex-advisory-ignore for advisories you have assessed and cannot yet
+          act on.
+        type: boolean
+        default: false
+      hex-advisory-ignore:
+        description: |
+          Comma-separated advisory IDs that run-hex-advisory-check should
+          tolerate rather than fail on. Matches the primary ID Hex prints or
+          any of its `aka:` aliases, so an EEF-CVE-…, CVE-… or GHSA-… form all
+          work (mix_audit's --ignore-advisory-ids takes GHSA ids, so reusing
+          that value here keeps the two lists in one dialect).
+
+          Ignored advisories are still printed, as notices — they stay visible
+          in the log instead of disappearing.
+        type: string
+        default: ""
       deps-reader-client-id:
         description: |
           GitHub App client ID for private-dep access (private hex packages or
@@ -199,6 +237,83 @@ jobs:
       - name: deps.audit (mix_audit CVE scan)
         if: inputs.run-deps-audit
         run: mix deps.audit
+
+      - name: Hex advisory gate (live advisory feed)
+        # Complements deps.audit rather than replacing it. mix_audit reads the
+        # mirego/elixir-security-advisories mirror; anything absent from that
+        # mirror is silently absent from its report. Hex checks the live feed
+        # on every resolution, so it catches what the mirror has not picked up.
+        if: inputs.run-hex-advisory-check
+        env:
+          HEX_ADVISORY_IGNORE: ${{ inputs.hex-advisory-ignore }}
+        run: |
+          set -uo pipefail
+
+          # Deps are already fetched by "Install dependencies"; this re-resolves
+          # so the advisory annotations are attached to output we own. Hex prints
+          # them on an unchanged tree too, so this is cheap.
+          out=$(mix deps.get 2>&1)
+          printf '%s\n' "$out"
+          echo "---"
+
+          # Hex prints, per affected package:
+          #     bandit 1.12.4 VULNERABLE!
+          #       EEF-CVE-2026-74836 (HIGH)
+          #       aka: CVE-2026-74836, GHSA-xj8g-532w-jv94
+          #       <title>
+          #       <url>
+          # Flatten that to one "package version|id|severity|aka" record per
+          # advisory (a package can carry several).
+          findings=$(printf '%s\n' "$out" | awk '
+            function flush() {
+              if (id != "") { print pkg "|" id "|" sev "|" aka; id = ""; sev = ""; aka = "" }
+            }
+            $NF == "VULNERABLE!" { flush(); pkg = $1 " " $2; next }
+            pkg != "" && NF == 2 && $2 ~ /^\([A-Z]+\)$/ {
+              flush(); id = $1; sev = substr($2, 2, length($2) - 2); next
+            }
+            pkg != "" && $1 == "aka:" { sub(/^[[:space:]]*aka:[[:space:]]*/, "", $0); aka = $0; next }
+            END { flush() }
+          ')
+
+          # The failure mode this whole gate exists to prevent is a security
+          # check that reports green off data it did not actually read. If Hex
+          # says there are advisories and the parser extracted none, its output
+          # format has moved — fail, do not pass quietly.
+          if printf '%s\n' "$out" | grep -q "VULNERABLE!" && [ -z "$findings" ]; then
+            echo "::error::Hex reported advisories but this gate parsed none — its output format has probably changed. Fix the parser in elixir.yml; do not silence this."
+            exit 1
+          fi
+
+          if [ -z "$findings" ]; then
+            echo "No Hex security advisories for any resolved dependency."
+            exit 0
+          fi
+
+          blocking=0
+          ignore_list="${HEX_ADVISORY_IGNORE:-}"
+          while IFS='|' read -r pkg id sev aka; do
+            [ -n "$id" ] || continue
+            ignored=0
+            for ig in ${ignore_list//,/ }; do
+              [ -n "$ig" ] || continue
+              # Match the primary id or any alias, so GHSA-/CVE-/EEF-CVE- forms
+              # of the same advisory are interchangeable in the ignore list.
+              case " $id ${aka//,/ } " in *" $ig "*) ignored=1; break ;; esac
+            done
+            if [ "$ignored" = 1 ]; then
+              echo "::notice::ignored advisory $id ($sev) in $pkg [aka: ${aka:-none}]"
+            else
+              echo "::error::$pkg has $sev advisory $id [aka: ${aka:-none}]"
+              blocking=$((blocking + 1))
+            fi
+          done <<< "$findings"
+
+          if [ "$blocking" -gt 0 ]; then
+            echo "::error::$blocking unignored Hex security advisory/advisories — failing the build. Upgrade the dependency, or add the id to hex-advisory-ignore with a reason."
+            exit 1
+          fi
+          echo "All reported Hex advisories are explicitly ignored via hex-advisory-ignore."
 
       - name: sobelow
         if: inputs.run-sobelow
