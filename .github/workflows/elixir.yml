@@ -66,6 +66,29 @@ on:
           itself queries. Pair it with run-hex-advisory-check.
         type: boolean
         default: false
+      run-prod-compile:
+        description: |
+          Additionally compile with `MIX_ENV=prod`, to catch breakage that only
+          exists in the production build.
+
+          Worth turning on for anything that ships a Mix release. A release
+          evaluates `config/config.exs` at *build* time under `MIX_ENV=prod`,
+          which is a path the normal dev/test compile never touches — a missing
+          `config/prod.exs`, a bad `import_config`, or code that only compiles
+          under dev/test all pass CI and then fail when the image is built.
+
+          Where a repo builds its image on `main` only (a common pattern, to
+          keep PR-controlled Dockerfiles off self-hosted runners), that failure
+          lands *after* merge, so `main` goes red on a diff that already passed
+          review. This check moves it to PR time for a fraction of the cost of
+          a full image build.
+
+          Not `--warnings-as-errors`: the goal is "does the production build
+          work", not warning hygiene, and prod-only warnings in a dependency
+          shouldn't red-line a consumer. `_build` is already cached, so the
+          extra prod tree costs a full compile only when the lockfile changes.
+        type: boolean
+        default: false
       run-hex-advisory-check:
         description: |
           Fail the build when Hex's own resolver reports a security advisory
@@ -211,6 +234,17 @@ jobs:
 
       - name: Compile (warnings as errors)
         run: mix compile --warnings-as-errors
+
+      - name: Compile (MIX_ENV=prod)
+        # Exercises the production build path: config.exs is re-evaluated with
+        # config_env() == :prod, so a missing config/prod.exs or a broken
+        # import_config fails here rather than in a post-merge image build.
+        if: inputs.run-prod-compile
+        env:
+          MIX_ENV: prod
+        run: |
+          mix deps.get
+          mix compile
 
       - name: Format check
         if: inputs.run-format-check
