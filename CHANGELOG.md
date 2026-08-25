@@ -6,6 +6,36 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ## [Unreleased]
 
+### Added
+
+- `elixir.yml` — `run-prod-compile`, which additionally compiles with
+  `MIX_ENV=prod`.
+
+  A Mix release evaluates `config/config.exs` at *build* time under
+  `config_env() == :prod`, a path the normal dev/test compile never touches.
+  So a missing `config/prod.exs`, a broken `import_config`, or code that only
+  compiles under dev/test passes CI green and then fails when the image is
+  built.
+
+  Found in a consumer repo where the image build had **never** succeeded —
+  every merge to `main` for months failed with
+  `could not read file "/app/config/prod.exs"`, while every PR was green. The
+  image build was gated `if: github.ref == 'refs/heads/main'` (a reasonable
+  pattern, keeping PR-controlled Dockerfiles off self-hosted runners), so the
+  failure always landed post-merge on a diff that had already passed review,
+  at the end of the run behind `needs:`. Nothing was watching the one place it
+  showed up.
+
+  This check moves that class of failure to PR time for a fraction of the cost
+  of a full image build. Deliberately not `--warnings-as-errors` — the
+  question is whether the production build *works*, not warning hygiene, and a
+  prod-only warning in a dependency shouldn't red-line a consumer. `_build` is
+  already cached, so the extra prod tree costs a full compile only when the
+  lockfile changes.
+
+  Off by default, like the other opt-in gates. Worth enabling for anything
+  that ships a release.
+
 ## [2.16.0] - 2026-08-24
 
 ### Added
