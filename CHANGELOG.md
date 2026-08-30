@@ -6,6 +6,8 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ## [Unreleased]
 
+## [3.1.0] - 2026-08-30
+
 ### Changed
 
 - Refreshed every pinned upstream action to its latest release. SHAs and the
@@ -1035,7 +1037,8 @@ README; everything below is the actual content of this repo.
 - Bumped `actions/checkout` from `@v4` to `@v6` across all existing
   workflows for consistency with new files.
 
-[Unreleased]: https://github.com/nkg/github-actions/compare/v3.0.1...HEAD
+[Unreleased]: https://github.com/nkg/github-actions/compare/v3.1.0...HEAD
+[3.1.0]: https://github.com/nkg/github-actions/compare/v3.0.1...v3.1.0
 [3.0.1]: https://github.com/nkg/github-actions/compare/v3.0.0...v3.0.1
 [3.0.0]: https://github.com/nkg/github-actions/compare/v2.17.0...v3.0.0
 [2.17.0]: https://github.com/nkg/github-actions/compare/v2.16.0...v2.17.0
