@@ -6,6 +6,30 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ## [Unreleased]
 
+### Added
+
+- `opentofu.yml` — `init-backend` input (boolean, default `true`). Set it to
+  `false` to run `tofu init -backend=false`, initialising providers and
+  modules without touching the backend.
+
+  Needed by any consumer whose configuration has a `backend` block requiring
+  credentials that a lint-only job has no business holding. A bare
+  `tofu init` against an S3/R2 backend fails with *"No valid credential
+  sources found"* before `validate` ever runs, so a fmt/validate job that was
+  green with local state goes red the moment a backend block lands. That is
+  exactly what `hordialabs/platform` hit moving its state to Cloudflare R2.
+
+  ```yaml
+  uses: nkg/github-actions/.github/workflows/opentofu.yml@v3
+  with:
+    run-plan: false
+    init-backend: false   # fmt + validate only; no state credentials in CI
+  ```
+
+  Mutually exclusive with `run-plan`, which needs state — setting both now
+  fails fast with an explicit error rather than a confusing one from `plan`.
+  Default `true` keeps every existing caller byte-identical.
+
 ## [3.1.0] - 2026-08-30
 
 ### Changed
