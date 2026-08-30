@@ -6,6 +6,77 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING (consumers): `secret-scan.yml` now scans with
+  [betterleaks](https://github.com/betterleaks/betterleaks) instead of
+  gitleaks, and the `gitleaks-version` input is replaced by
+  `betterleaks-version`** (default `1.8.1`). A caller still passing
+  `gitleaks-version` will fail validation — drop it, or rename it.
+
+  betterleaks is gitleaks' successor, written from scratch by gitleaks'
+  original author after he lost admin control of that repository and its
+  name. It is MIT, he retains ownership, and it carries no license key
+  requirement for org use — the same reason this workflow installed the OSS
+  gitleaks binary rather than the paid official action.
+
+  Compatibility is close to total, which is what made the swap cheap: the
+  flags this workflow uses (`--no-banner`, `--redact`,
+  `--report-format=sarif`, `--report-path`, `--config`, `--exit-code`,
+  `--log-opts`) all exist, release tarballs are named identically in shape,
+  and betterleaks still reads `.gitleaks.toml`, `GITLEAKS_CONFIG`,
+  `.gitleaksignore` (same fingerprint format) and `gitleaks:allow` comments as
+  fallbacks. An existing gitleaks config needs no changes.
+
+  **Expect new findings.** betterleaks reports ~98.6% recall against CredData
+  where gitleaks reports ~70.4%, so a repo that scanned clean may not any
+  more. This repo was exactly that case: a full-history scan went from *no
+  leaks* under gitleaks to *1 leak* under betterleaks — a `generic-password`
+  match, at low confidence, on the `GRAFANA_ADMIN_PASSWORD=ci-validate`
+  documentation placeholder in `examples/README.md`. Because such matches live
+  in committed history, a `betterleaks:allow` comment on the current line
+  cannot clear them; the fingerprint has to be pinned (see Added). PR-diff
+  mode is unaffected unless the offending line is touched, so the surprise
+  lands on push/scheduled full-history runs.
+
+- Other reusables are unchanged. The major bump is repo-wide because the tags
+  are: `@v3` now tracks this line, and the docs are updated to match.
+
+### Added
+
+- `secret-scan.yml` — `confidence` input (`low` / `medium` / `high`, default
+  empty = report everything). Filters findings below the given confidence,
+  which is the blunt escape hatch for the recall increase above when pinning
+  individual fingerprints isn't practical.
+
+- `.gitleaksignore` — pins the one low-confidence false positive in this
+  repo's own history so the full-history scan and the `pre-push` hook stay
+  green. Documents the fingerprint format for consumers hitting the same
+  thing.
+
+### Migration
+
+Callers that never set `gitleaks-version` only need the tag bump:
+
+```yaml
+uses: nkg/github-actions/.github/workflows/secret-scan.yml@v3
+```
+
+Callers that pinned a version rename the input:
+
+```yaml
+with:
+  betterleaks-version: "1.8.1"   # was: gitleaks-version: "8.30.1"
+```
+
+If the first run surfaces false positives, either pin fingerprints in
+`.gitleaksignore` (preferred — keeps low-confidence detection on) or set
+`confidence: medium`. The SARIF artifact is now named `betterleaks-sarif`.
+
+Local tooling moved too: `mise.toml` pins `betterleaks` and `lefthook.yml`'s
+pre-commit/pre-push secret scans invoke it, so `mise install` on an existing
+clone swaps the binary.
+
 ## [2.17.0] - 2026-08-25
 
 ### Added

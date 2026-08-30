@@ -1,7 +1,7 @@
 # Consumer examples
 
 Drop these into `.github/workflows/*.yml` of a consumer repo. Replace
-`nkg/github-actions@v2` with a SHA when you need bit-for-bit pinning.
+`nkg/github-actions@v3` with a SHA when you need bit-for-bit pinning.
 
 ## Python (uv)
 
@@ -13,7 +13,7 @@ on:
   pull_request:
 jobs:
   test:
-    uses: nkg/github-actions/.github/workflows/python-uv.yml@v2
+    uses: nkg/github-actions/.github/workflows/python-uv.yml@v3
     with:
       python-version: "3.14"
     secrets: inherit
@@ -31,7 +31,7 @@ name: CI
 on: [push, pull_request]
 jobs:
   web:
-    uses: nkg/github-actions/.github/workflows/node-bun.yml@v2
+    uses: nkg/github-actions/.github/workflows/node-bun.yml@v3
     with:
       working-directory: apps/web
       # package-manager: npm      # bun (default) | npm | yarn | pnpm
@@ -51,7 +51,7 @@ name: Integration
 on: [push, pull_request]
 jobs:
   integration:
-    uses: nkg/github-actions/.github/workflows/playwright-integration.yml@v2
+    uses: nkg/github-actions/.github/workflows/playwright-integration.yml@v3
     with:
       playwright-image: "mcr.microsoft.com/playwright:v1.60.0-noble"
       npm-scope: "@hordialabs"
@@ -71,7 +71,7 @@ name: CI
 on: [push, pull_request]
 jobs:
   app:
-    uses: nkg/github-actions/.github/workflows/expo.yml@v2
+    uses: nkg/github-actions/.github/workflows/expo.yml@v3
     with:
       bun-version: "1.1"
     # Opt into an EAS build (off by default; needs EXPO_TOKEN):
@@ -89,7 +89,7 @@ at the repo's own scripts:
 ```yaml
 jobs:
   app:
-    uses: nkg/github-actions/.github/workflows/expo.yml@v2
+    uses: nkg/github-actions/.github/workflows/expo.yml@v3
     with:
       package-manager: npm
       use-mise: true                       # Node comes from mise.toml
@@ -109,7 +109,7 @@ jobs:
       matrix:
         otp: ["26", "27"]
         elixir: ["1.16", "1.17"]
-    uses: nkg/github-actions/.github/workflows/elixir.yml@v2
+    uses: nkg/github-actions/.github/workflows/elixir.yml@v3
     with:
       otp-version: ${{ matrix.otp }}
       elixir-version: ${{ matrix.elixir }}
@@ -124,7 +124,7 @@ name: CI
 on: [push, pull_request]
 jobs:
   ci:
-    uses: nkg/github-actions/.github/workflows/elixir.yml@v2
+    uses: nkg/github-actions/.github/workflows/elixir.yml@v3
     with:
       elixir-version: "1.18"
       otp-version: "27"
@@ -150,7 +150,7 @@ on:
     paths: ["stacks/cloudflare/**"]
 jobs:
   cloudflare:
-    uses: nkg/github-actions/.github/workflows/opentofu.yml@v2
+    uses: nkg/github-actions/.github/workflows/opentofu.yml@v3
     with:
       working-directory: stacks/cloudflare
       tofu-version: "1.8.0"
@@ -167,7 +167,7 @@ on:
   pull_request:
 jobs:
   image:
-    uses: nkg/github-actions/.github/workflows/docker-build.yml@v2
+    uses: nkg/github-actions/.github/workflows/docker-build.yml@v3
     with:
       image-name: ${{ github.repository }}
       platforms: linux/amd64,linux/arm64
@@ -183,7 +183,7 @@ Consume it in the Dockerfile with
 ```yaml
 jobs:
   image:
-    uses: nkg/github-actions/.github/workflows/docker-build.yml@v2
+    uses: nkg/github-actions/.github/workflows/docker-build.yml@v3
     with:
       image-name: ${{ github.repository }}
       push: ${{ github.event_name != 'pull_request' }}
@@ -202,7 +202,7 @@ name: CI
 on: [push, pull_request]
 jobs:
   ansible:
-    uses: nkg/github-actions/.github/workflows/ansible.yml@v2
+    uses: nkg/github-actions/.github/workflows/ansible.yml@v3
     with:
       working-directory: ansible
       playbooks: |
@@ -218,7 +218,7 @@ name: CI
 on: [push, pull_request]
 jobs:
   go:
-    uses: nkg/github-actions/.github/workflows/go.yml@v2
+    uses: nkg/github-actions/.github/workflows/go.yml@v3
     with:
       go-version: "1.23"
       run-staticcheck: true
@@ -233,7 +233,7 @@ name: CI
 on: [push, pull_request]
 jobs:
   go:
-    uses: nkg/github-actions/.github/workflows/go.yml@v2
+    uses: nkg/github-actions/.github/workflows/go.yml@v3
     with:
       go-version: "1.26"
       # goprivate is required for private modules — it makes `go` resolve them
@@ -261,7 +261,7 @@ name: CI
 on: [push, pull_request]
 jobs:
   go:
-    uses: nkg/github-actions/.github/workflows/go.yml@v2
+    uses: nkg/github-actions/.github/workflows/go.yml@v3
     with:
       go-version: "1.26"
       run-golangci-lint: true
@@ -278,7 +278,7 @@ name: CI
 on: [push, pull_request]
 jobs:
   go:
-    uses: nkg/github-actions/.github/workflows/go.yml@v2
+    uses: nkg/github-actions/.github/workflows/go.yml@v3
     with:
       go-version: "1.26"
       postgres-enabled: true
@@ -293,7 +293,7 @@ name: CI
 on: [push, pull_request]
 jobs:
   scrapy:
-    uses: nkg/github-actions/.github/workflows/scrapy.yml@v2
+    uses: nkg/github-actions/.github/workflows/scrapy.yml@v3
     with:
       run-spider-smoke: true
       spider-name: products
@@ -306,7 +306,7 @@ name: CI
 on: [push, pull_request]
 jobs:
   api:
-    uses: nkg/github-actions/.github/workflows/fastapi.yml@v2
+    uses: nkg/github-actions/.github/workflows/fastapi.yml@v3
     with:
       app-module: myapi.main:app
       run-openapi-diff: true
@@ -320,7 +320,7 @@ name: Validate compose
 on: [push, pull_request]
 jobs:
   validate:
-    uses: nkg/github-actions/.github/workflows/compose-validate.yml@v2
+    uses: nkg/github-actions/.github/workflows/compose-validate.yml@v3
     with:
       compose-file: docker-compose.yml
       profiles: |
@@ -341,7 +341,7 @@ on:
     branches: [main]
 jobs:
   komodo:
-    uses: nkg/github-actions/.github/workflows/komodo-deploy.yml@v2
+    uses: nkg/github-actions/.github/workflows/komodo-deploy.yml@v3
     with:
       komodo-url: https://komodo.example.com
       operation: DeployStack
@@ -356,7 +356,7 @@ jobs:
 
 ## Security
 
-### Secret scan (gitleaks)
+### Secret scan (betterleaks)
 
 ```yaml
 name: Secret scan
@@ -367,8 +367,8 @@ on:
   schedule:
     - cron: '0 6 * * 1'   # weekly full-history sweep
 jobs:
-  gitleaks:
-    uses: nkg/github-actions/.github/workflows/secret-scan.yml@v2
+  betterleaks:
+    uses: nkg/github-actions/.github/workflows/secret-scan.yml@v3
     with:
       runs-on: '["self-hosted", "linux", "x64"]'
 ```
@@ -387,7 +387,7 @@ on:
     - cron: '0 6 * * 1'
 jobs:
   trivy:
-    uses: nkg/github-actions/.github/workflows/container-security.yml@v2
+    uses: nkg/github-actions/.github/workflows/container-security.yml@v3
     permissions:
       contents: read
       actions: read          # }- only needed while upload-sarif is true
@@ -402,7 +402,7 @@ Or scan an explicit list:
 ```yaml
 jobs:
   trivy:
-    uses: nkg/github-actions/.github/workflows/container-security.yml@v2
+    uses: nkg/github-actions/.github/workflows/container-security.yml@v3
     permissions:
       contents: read
       actions: read
@@ -418,7 +418,7 @@ jobs:
 ```yaml
 jobs:
   trivy:
-    uses: nkg/github-actions/.github/workflows/container-security.yml@v2
+    uses: nkg/github-actions/.github/workflows/container-security.yml@v3
     permissions:
       contents: read
     with:
@@ -442,7 +442,7 @@ on:
     - cron: '0 6 * * 1'
 jobs:
   fs:
-    uses: nkg/github-actions/.github/workflows/trivy-repo.yml@v2
+    uses: nkg/github-actions/.github/workflows/trivy-repo.yml@v3
     permissions:
       contents: read
       actions: read          # }- only needed while upload-sarif is true
@@ -450,7 +450,7 @@ jobs:
     with:
       scan-type: fs
   config:
-    uses: nkg/github-actions/.github/workflows/trivy-repo.yml@v2
+    uses: nkg/github-actions/.github/workflows/trivy-repo.yml@v3
     permissions:
       contents: read
       actions: read
@@ -467,7 +467,7 @@ jobs:
 ```yaml
 jobs:
   fs:
-    uses: nkg/github-actions/.github/workflows/trivy-repo.yml@v2
+    uses: nkg/github-actions/.github/workflows/trivy-repo.yml@v3
     permissions:
       contents: read
     with:
@@ -484,7 +484,7 @@ name: SOPS audit
 on: [push, pull_request]
 jobs:
   audit:
-    uses: nkg/github-actions/.github/workflows/sops-audit.yml@v2
+    uses: nkg/github-actions/.github/workflows/sops-audit.yml@v3
     with:
       encrypted-glob: '*.encrypted'
       shellcheck: true
@@ -503,7 +503,7 @@ on:
     paths: ['.github/workflows/**', '.github/actions/**']
 jobs:
   lint:
-    uses: nkg/github-actions/.github/workflows/lint-workflows.yml@v2
+    uses: nkg/github-actions/.github/workflows/lint-workflows.yml@v3
     with:
       # actionlint's bundled action metadata trails behind upstream.
       # See sproncy-distillery/.github/workflows/lint-workflows.yml for context.
@@ -542,14 +542,14 @@ permissions:
   actions: read
 jobs:
   claude:
-    uses: nkg/github-actions/.github/workflows/claude.yml@v2
+    uses: nkg/github-actions/.github/workflows/claude.yml@v3
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 ```
 
 ### Claude code review on every PR
 
-Note: `claude-code-action@v2` self-validates that the workflow file on
+Note: `claude-code-action@v3` self-validates that the workflow file on
 the PR matches the version on the default branch. On the PR that first
 introduces this wrapper, expect one "Workflow validation failed"
 failure — it's safe to ignore (the action's own message says so) and
@@ -570,7 +570,7 @@ permissions:
   id-token: write
 jobs:
   review:
-    uses: nkg/github-actions/.github/workflows/claude-code-review.yml@v2
+    uses: nkg/github-actions/.github/workflows/claude-code-review.yml@v3
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 ```
@@ -580,7 +580,7 @@ Pass a repo-specific prompt + restricted gh-tools allow-list:
 ```yaml
 jobs:
   review:
-    uses: nkg/github-actions/.github/workflows/claude-code-review.yml@v2
+    uses: nkg/github-actions/.github/workflows/claude-code-review.yml@v3
     with:
       prompt: |
         REPO: ${{ github.repository }}
@@ -597,7 +597,7 @@ Filter to first-time contributors only:
 ```yaml
 jobs:
   review:
-    uses: nkg/github-actions/.github/workflows/claude-code-review.yml@v2
+    uses: nkg/github-actions/.github/workflows/claude-code-review.yml@v3
     with:
       filter-first-time-only: true
     secrets:
@@ -615,7 +615,7 @@ on:
     types: [opened]
 jobs:
   assign:
-    uses: nkg/github-actions/.github/workflows/auto-assign.yml@v2
+    uses: nkg/github-actions/.github/workflows/auto-assign.yml@v3
     with:
       assignees: nkg
 ```
@@ -634,7 +634,7 @@ on:
   pull_request:
 jobs:
   merge:
-    uses: nkg/github-actions/.github/workflows/dependabot-auto-merge.yml@v2
+    uses: nkg/github-actions/.github/workflows/dependabot-auto-merge.yml@v3
     # Defaults: squash strategy, skip major bumps, use-auto-merge: true.
     # with:
     #   merge-strategy: rebase
@@ -656,7 +656,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
-    uses: nkg/github-actions/.github/workflows/dependabot-auto-merge.yml@v2
+    uses: nkg/github-actions/.github/workflows/dependabot-auto-merge.yml@v3
     with:
       use-auto-merge: false
 ```
@@ -676,7 +676,7 @@ permissions:
   contents: write
 jobs:
   update-lockfile:
-    uses: nkg/github-actions/.github/workflows/dependabot-uv-lockfile.yml@v2
+    uses: nkg/github-actions/.github/workflows/dependabot-uv-lockfile.yml@v3
     with:
       directories: |
         sproncy-api
@@ -707,7 +707,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
-    uses: nkg/github-actions/.github/workflows/auto-revert-on-main-failure.yml@v2
+    uses: nkg/github-actions/.github/workflows/auto-revert-on-main-failure.yml@v3
     with:
       bad-sha: ${{ github.event.workflow_run.head_sha }}
       failed-run-url: ${{ github.event.workflow_run.html_url }}
@@ -733,7 +733,7 @@ on:
   workflow_dispatch:
 jobs:
   cleanup:
-    uses: nkg/github-actions/.github/workflows/stale-run-cleanup.yml@v2
+    uses: nkg/github-actions/.github/workflows/stale-run-cleanup.yml@v3
     # with:
     #   min-age-minutes: 5     # grace period before a superseded run is cancelled
     #   dry-run: true          # log only
@@ -800,7 +800,7 @@ name: CI
 on: [push, pull_request]
 jobs:
   build:
-    uses: nkg/github-actions/.github/workflows/turbo.yml@v2
+    uses: nkg/github-actions/.github/workflows/turbo.yml@v3
     with:
       turbo-tasks: "lint type-check test build"
       turbo-filter: "@my-org/web @my-org/api"
@@ -827,7 +827,7 @@ jobs:
   web:
     needs: changes
     if: needs.changes.outputs.web == 'true'
-    uses: nkg/github-actions/.github/workflows/turbo.yml@v2
+    uses: nkg/github-actions/.github/workflows/turbo.yml@v3
     with:
       turbo-tasks: "lint type-check test build"
       turbo-filter: "@my-org/web"
@@ -842,7 +842,7 @@ name: Molecule
 on: [push, pull_request]
 jobs:
   molecule:
-    uses: nkg/github-actions/.github/workflows/molecule.yml@v2
+    uses: nkg/github-actions/.github/workflows/molecule.yml@v3
     with:
       roles: |
         common
@@ -860,7 +860,7 @@ name: TOML lint
 on: [push, pull_request]
 jobs:
   toml:
-    uses: nkg/github-actions/.github/workflows/toml-lint.yml@v2
+    uses: nkg/github-actions/.github/workflows/toml-lint.yml@v3
 ```
 
 ### Bats + shellcheck
@@ -870,7 +870,7 @@ name: Bash tests
 on: [push, pull_request]
 jobs:
   bash:
-    uses: nkg/github-actions/.github/workflows/bats.yml@v2
+    uses: nkg/github-actions/.github/workflows/bats.yml@v3
     with:
       test-paths: tests/
       # Auto-detects scripts/ + tests/ + bin/ when shellcheck-paths is empty
@@ -881,7 +881,7 @@ Pinning bats and customising shellcheck scope:
 ```yaml
 jobs:
   bash:
-    uses: nkg/github-actions/.github/workflows/bats.yml@v2
+    uses: nkg/github-actions/.github/workflows/bats.yml@v3
     with:
       bats-version: "1.11.0"
       test-paths: "tests/sops tests/restore"
@@ -903,7 +903,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: nkg/github-actions/.github/actions/setup-sops@v2
+      - uses: nkg/github-actions/.github/actions/setup-sops@v3
         with:
           age-key: ${{ secrets.SOPS_AGE_KEY }}
           decrypt-file: secrets.enc.yaml
@@ -921,7 +921,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: nkg/github-actions/.github/actions/setup-deps-reader@v2
+      - uses: nkg/github-actions/.github/actions/setup-deps-reader@v3
         with:
           app-client-id: ${{ vars.DEPS_READER_CLIENT_ID }}
           app-private-key: ${{ secrets.DEPS_READER_PRIVATE_KEY }}
@@ -938,7 +938,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: nkg/github-actions/.github/actions/setup-trivy@v2
+      - uses: nkg/github-actions/.github/actions/setup-trivy@v3
       - run: trivy fs --severity HIGH,CRITICAL .
 
   sign:
@@ -947,7 +947,7 @@ jobs:
       id-token: write
       contents: read
     steps:
-      - uses: nkg/github-actions/.github/actions/setup-cosign@v2
+      - uses: nkg/github-actions/.github/actions/setup-cosign@v3
       - run: cosign sign --yes ghcr.io/nkg/api@sha256:...
 ```
 
@@ -959,7 +959,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: nkg/github-actions/.github/actions/setup-mise@v2   # runs `mise install` from .mise.toml
+      - uses: nkg/github-actions/.github/actions/setup-mise@v3   # runs `mise install` from .mise.toml
       - run: mise run build
 ```
 
@@ -971,7 +971,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: nkg/github-actions/.github/actions/setup-go@v2
+      - uses: nkg/github-actions/.github/actions/setup-go@v3
         with:
           go-version: "1.23"
       - run: go build ./...
@@ -988,7 +988,7 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: nkg/github-actions/.github/actions/setup-token@v2
+      - uses: nkg/github-actions/.github/actions/setup-token@v3
         id: token
         with:
           app-client-id: ${{ vars.APP_CLIENT_ID }}

@@ -74,8 +74,8 @@ doesn't false-positive.
 Workflows are consumed by tag. Tags follow `vMAJOR.MINOR.PATCH` and a
 floating `vMAJOR` tag tracks the latest non-breaking release on that line.
 
-- Pin to `@v2` for low-friction updates within a major version.
-- Pin to `@v2.4.0` (or a SHA) when you need bit-for-bit reproducibility.
+- Pin to `@v3` for low-friction updates within a major version.
+- Pin to `@v3.0.0` (or a SHA) when you need bit-for-bit reproducibility.
 
 Breaking changes bump the major. See `CHANGELOG.md`.
 
@@ -92,7 +92,7 @@ on:
 
 jobs:
   test:
-    uses: nkg/github-actions/.github/workflows/python-uv.yml@v2
+    uses: nkg/github-actions/.github/workflows/python-uv.yml@v3
     with:
       python-version: "3.14"
     secrets: inherit
@@ -123,7 +123,7 @@ which default to the self-hosted pool.
 ```yaml
 steps:
   - uses: actions/checkout@v6
-  - uses: nkg/github-actions/.github/actions/setup-mise@v2
+  - uses: nkg/github-actions/.github/actions/setup-mise@v3
   - run: mise run build
 ```
 
@@ -154,7 +154,7 @@ steps:
 
 | Workflow                | Purpose                                                          |
 |-------------------------|------------------------------------------------------------------|
-| `secret-scan.yml`       | OSS gitleaks; PR-diff or full-history scan, SARIF artifact       |
+| `secret-scan.yml`       | OSS betterleaks; PR-diff or full-history scan, SARIF artifact    |
 | `container-security.yml`| Trivy scan of every image in a compose file or explicit list     |
 | `trivy-repo.yml`        | Trivy filesystem (lockfiles) or config (IaC) scan of the repo    |
 | `sops-audit.yml`        | Verify SOPS encryption + plaintext-secret scan + shellcheck      |
@@ -202,7 +202,7 @@ are single-job.
 ## Local development
 
 Git hooks (lefthook) run the same checks as `self-test.yml` — actionlint,
-yamllint, composite-action syntax, gitleaks — before commit/push, plus a
+yamllint, composite-action syntax, betterleaks — before commit/push, plus a
 guard against direct pushes to `main` (bypass: `ALLOW_MAIN_PUSH=1 git push`).
 This dogfoods the pattern documented in [examples/pre-push-hook.md](examples/pre-push-hook.md).
 One-time setup per clone:
