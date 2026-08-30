@@ -6,6 +6,8 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ## [Unreleased]
 
+## [3.2.0] - 2026-08-30
+
 ### Added
 
 - `opentofu.yml` — `init-backend` input (boolean, default `true`). Set it to
@@ -1061,7 +1063,8 @@ README; everything below is the actual content of this repo.
 - Bumped `actions/checkout` from `@v4` to `@v6` across all existing
   workflows for consistency with new files.
 
-[Unreleased]: https://github.com/nkg/github-actions/compare/v3.1.0...HEAD
+[Unreleased]: https://github.com/nkg/github-actions/compare/v3.2.0...HEAD
+[3.2.0]: https://github.com/nkg/github-actions/compare/v3.1.0...v3.2.0
 [3.1.0]: https://github.com/nkg/github-actions/compare/v3.0.1...v3.1.0
 [3.0.1]: https://github.com/nkg/github-actions/compare/v3.0.0...v3.0.1
 [3.0.0]: https://github.com/nkg/github-actions/compare/v2.17.0...v3.0.0
