@@ -122,7 +122,7 @@ which default to the self-hosted pool.
 
 ```yaml
 steps:
-  - uses: actions/checkout@v6
+  - uses: actions/checkout@v7
   - uses: nkg/github-actions/.github/actions/setup-mise@v3
   - run: mise run build
 ```

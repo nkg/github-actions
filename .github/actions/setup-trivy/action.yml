@@ -6,7 +6,7 @@ inputs:
     description: "Trivy CLI version (without the 'v' prefix)"
     required: false
     # renovate: datasource=github-releases depName=aquasecurity/trivy
-    default: "0.71.0"
+    default: "0.74.0"
 
 runs:
   using: composite
