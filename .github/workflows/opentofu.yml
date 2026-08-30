@@ -39,6 +39,18 @@ on:
         description: "Args passed to `tofu init -backend-config=...` (newline-separated)"
         type: string
         default: ""
+      init-backend:
+        description: |
+          Initialise the backend during `tofu init`. Set false to pass
+          `-backend=false`, which initialises providers and modules only.
+
+          Needed for fmt/validate-only jobs on a configuration whose
+          `backend` block requires credentials the job has no business
+          holding — an S3/R2 backend, for example, where a bare `tofu init`
+          fails with "No valid credential sources found" before `validate`
+          ever runs. Mutually exclusive with run-plan, which needs state.
+        type: boolean
+        default: true
       var-file:
         description: "Optional .tfvars file to pass to plan"
         type: string
@@ -99,9 +111,20 @@ jobs:
         if: inputs.run-fmt
         run: tofu fmt -check -recursive
 
+      # Fail here rather than three steps later with a confusing state
+      # error: `plan` needs the backend that `init-backend: false` skipped.
+      - name: Check input combination
+        if: ${{ !inputs.init-backend && inputs.run-plan }}
+        run: |
+          echo "::error::init-backend: false skips backend init, so tofu plan cannot run. Set run-plan: false, or give this job backend credentials." >&2
+          exit 1
+
       - name: tofu init
         run: |
           ARGS="-input=false"
+          if [ "${{ inputs.init-backend }}" != "true" ]; then
+            ARGS="$ARGS -backend=false"
+          fi
           if [ -n "${{ inputs.backend-config }}" ]; then
             while IFS= read -r line; do
               [ -z "$line" ] && continue

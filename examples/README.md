@@ -156,6 +156,21 @@ jobs:
       tofu-version: "1.8.0"
 ```
 
+Lint-only, on a stack whose `backend` block needs credentials CI does not
+hold (an S3/R2 backend, say). Without `init-backend: false`, `tofu init`
+fails with *"No valid credential sources found"* before `validate` runs:
+
+```yaml
+jobs:
+  validate:
+    uses: nkg/github-actions/.github/workflows/opentofu.yml@v3
+    with:
+      working-directory: tofu/proxmox
+      use-mise: true
+      run-plan: false
+      init-backend: false
+```
+
 ## Docker → GHCR
 
 ```yaml
