@@ -6,6 +6,24 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ## [Unreleased]
 
+### Fixed
+
+- The reusable workflows referenced their own composite actions at `@v2`
+  (`setup-mise`, `setup-token`, `setup-deps-reader` — 12 call sites); they now
+  reference `@v3`.
+
+  This was self-healing while the repo had one major line: `v2` moved with
+  every release, so "the `@v2` composites" were always the current ones. The
+  3.0.0 bump froze `v2` at 2.17.0, which would have left every v3 reusable
+  pulling composites from that frozen tree forever — inert today, since the
+  composites are byte-identical across the bump, but any later composite fix
+  on the v3 line would silently never reach v3 consumers.
+
+  Not fixable in the 3.0.0 commit itself: GitHub resolves every `uses:` in a
+  job during "prepare actions", `if:`-gated steps included, so a commit
+  referencing `@v3` fails CI until the `v3` tag exists. Hence the follow-up
+  release.
+
 ## [3.0.0] - 2026-08-30
 
 ### Changed

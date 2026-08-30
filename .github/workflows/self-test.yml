@@ -69,7 +69,7 @@ jobs:
   # Integration tests: run the reusable language workflows end-to-end against
   # tiny fixture projects. A local-path `uses:` runs the workflow from this
   # commit. Fixtures stay on the default (non-mise) toolchain paths — the
-  # composite refs inside the reusables resolve to the released @v2 tag, so a
+  # composite refs inside the reusables resolve to the released @v3 tag, so a
   # use-mise fixture would exercise released code rather than this PR's.
   integration-python-uv:
     uses: ./.github/workflows/python-uv.yml

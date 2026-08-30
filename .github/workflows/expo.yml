@@ -122,7 +122,7 @@ jobs:
       # `mise install` against the consumer's mise config.
       - name: Setup mise toolchain
         if: inputs.use-mise
-        uses: nkg/github-actions/.github/actions/setup-mise@v2
+        uses: nkg/github-actions/.github/actions/setup-mise@v3
         with:
           working-directory: ${{ inputs.working-directory }}
 

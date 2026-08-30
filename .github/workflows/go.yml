@@ -178,7 +178,7 @@ jobs:
       # which repo is checked out.
       - name: Configure private-deps access
         if: inputs.deps-reader-client-id != ''
-        uses: nkg/github-actions/.github/actions/setup-deps-reader@v2
+        uses: nkg/github-actions/.github/actions/setup-deps-reader@v3
         with:
           app-client-id: ${{ inputs.deps-reader-client-id }}
           app-private-key: ${{ secrets.DEPS_READER_PRIVATE_KEY }}
@@ -189,7 +189,7 @@ jobs:
       # the consumer's mise.toml.
       - name: Setup mise toolchain
         if: inputs.use-mise
-        uses: nkg/github-actions/.github/actions/setup-mise@v2
+        uses: nkg/github-actions/.github/actions/setup-mise@v3
         with:
           working-directory: ${{ inputs.working-directory }}
 

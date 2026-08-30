@@ -126,7 +126,7 @@ jobs:
       - name: Mint private-deps token
         id: deps-reader
         if: inputs.deps-reader-client-id != ''
-        uses: nkg/github-actions/.github/actions/setup-token@v2
+        uses: nkg/github-actions/.github/actions/setup-token@v3
         with:
           app-client-id: ${{ inputs.deps-reader-client-id }}
           app-private-key: ${{ secrets.DEPS_READER_PRIVATE_KEY }}

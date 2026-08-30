@@ -103,7 +103,7 @@ jobs:
       # out to git for git deps) can reach private repos regardless of checkout.
       - name: Configure private-deps access
         if: inputs.deps-reader-client-id != ''
-        uses: nkg/github-actions/.github/actions/setup-deps-reader@v2
+        uses: nkg/github-actions/.github/actions/setup-deps-reader@v3
         with:
           app-client-id: ${{ inputs.deps-reader-client-id }}
           app-private-key: ${{ secrets.DEPS_READER_PRIVATE_KEY }}

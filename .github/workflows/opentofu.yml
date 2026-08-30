@@ -63,7 +63,7 @@ jobs:
       # repo. Installs mise, caches the tool dir, runs `mise install`.
       - name: Setup mise toolchain
         if: inputs.use-mise
-        uses: nkg/github-actions/.github/actions/setup-mise@v2
+        uses: nkg/github-actions/.github/actions/setup-mise@v3
         with:
           working-directory: ${{ inputs.working-directory }}
 
