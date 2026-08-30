@@ -1,0 +1,12 @@
+# Suppressed findings (betterleaks reads .gitleaksignore as a fallback for
+# .betterleaksignore, so this file works unchanged across the migration).
+#
+# Format: <commit>:<path>:<rule-id>:<line>
+#
+# examples/README.md documents a compose-validate caller that passes
+# `GRAFANA_ADMIN_PASSWORD=ci-validate` as an env var — a literal placeholder
+# for a throwaway CI value, not a credential. betterleaks' generic-password
+# rule flags it at low confidence. The match lives in committed history, so a
+# `betterleaks:allow` comment on the current line can't clear it; the
+# fingerprint has to be pinned here.
+526db3a8224309be3e54b652a71b6ff9f97df8d0:examples/README.md:generic-password:159

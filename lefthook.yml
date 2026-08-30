@@ -5,14 +5,14 @@
 # here passes Actions. See examples/pre-push-hook.md for the rationale —
 # this repo documents the pattern, so it dogfoods it too.
 #
-# Tools (lefthook, actionlint, gitleaks, uv) are pinned in mise.toml;
+# Tools (lefthook, actionlint, betterleaks, uv) are pinned in mise.toml;
 # `mise install && lefthook install` on a fresh clone enables the hooks.
 
 pre-commit:
   parallel: true
   commands:
-    gitleaks:
-      run: gitleaks git --pre-commit --staged --redact --no-banner
+    betterleaks:
+      run: betterleaks git --pre-commit --staged --redact --no-banner
     yamllint:
       glob: "*.{yml,yaml}"
       run: uvx yamllint {staged_files}
@@ -49,5 +49,5 @@ pre-push:
             "import sys, yaml; yaml.safe_load(open(sys.argv[1]))" "$action"
         done
     # Full-history secret scan, matching secret-scan.yml's push-event mode.
-    gitleaks:
-      run: gitleaks git --redact --no-banner
+    betterleaks:
+      run: betterleaks git --redact --no-banner
