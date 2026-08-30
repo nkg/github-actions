@@ -6,6 +6,64 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ## [Unreleased]
 
+### Changed
+
+- Refreshed every pinned upstream action to its latest release. SHAs and the
+  trailing version comments both move; no input surface changes.
+
+  | Action | Was | Now |
+  | --- | --- | --- |
+  | `astral-sh/setup-uv` | v8.2.0 | v10.0.1 |
+  | `actions/checkout` | v6.0.3 | v7.0.1 |
+  | `actions/cache` | v5.0.5 | v6.1.0 |
+  | `actions/setup-node` | v6.4.0 | v7.0.0 |
+  | `actions/setup-go` | v6.4.0 | v7.0.0 |
+  | `github/codeql-action/upload-sarif` | v4.36.2 | v4.37.9 |
+  | `anthropics/claude-code-action` | v1.0.146 | v1.0.210 |
+  | `docker/login-action` | v4.2.0 | v4.6.0 |
+  | `docker/setup-buildx-action` | v4.1.0 | v4.3.0 |
+  | `docker/setup-qemu-action` | v4.1.0 | v4.2.0 |
+  | `docker/metadata-action` | v6.1.0 | v6.2.0 |
+  | `docker/build-push-action` | v7.2.0 | v7.3.0 |
+  | `erlef/setup-beam` | v1.24.0 | v1.24.1 |
+  | `anchore/sbom-action` | v0.24.0 | v0.24.2 |
+  | `opentofu/setup-opentofu` | v2.0.1 | v2.0.2 |
+
+  The `actions/*` majors are ESM/dependency migrations with no input changes;
+  all were already `node24`, so they need no newer runner agent than the
+  pinned versions did. `actions/checkout` v7 additionally refuses to check out
+  a fork PR head under `pull_request_target` / `workflow_run` — no workflow
+  here does that (the only `ref:` uses are `inputs.default-branch` and
+  `github.head_ref`), but consumers that check out a fork head from those
+  events will need `actions/checkout@v6` or a redesign.
+
+  `setup-uv` crosses two breaking releases: v9 flips `prune-cache` to `false`
+  (larger caches, evicted by GitHub's per-repo LRU — no billing impact), and
+  v10 disables caching under `pull_request_target` / `workflow_run` /
+  `release` when `enable-cache` is left at `auto`. Every caching call site
+  here sets `enable-cache: true` explicitly, so v10's default change is inert
+  for them.
+
+- Bumped the pinned tool-version input defaults to current releases; each
+  download URL was preflighted against the upstream release assets.
+
+  | Input | Was | Now |
+  | --- | --- | --- |
+  | `setup-trivy` `trivy-version` | 0.71.0 | 0.74.0 |
+  | `setup-cosign` `cosign-version` | v3.1.1 | v3.1.3 |
+  | `setup-sops` `sops-version` | v3.13.1 | v3.13.3 |
+  | `setup-sops` `age-version` | v1.3.1 | v1.3.2 |
+  | `opentofu.yml` `tofu-version` | 1.12.1 | 1.12.6 |
+
+  Already current: `taplo` 0.10.0, `betterleaks` 1.8.1, `actionlint` 1.7.12,
+  `trivy-action-version` 0.36.0.
+
+### Documentation
+
+- Example snippets in `README.md` / `examples/README.md` now show
+  `actions/checkout@v7`, `astral-sh/setup-uv@v10` and `actions/labeler@v7`
+  (the labeler config format is unchanged from v5).
+
 ## [3.0.1] - 2026-08-30
 
 ### Fixed

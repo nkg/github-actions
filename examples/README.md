@@ -762,7 +762,7 @@ jobs:
   label:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/labeler@v5
+      - uses: actions/labeler@v7
 ```
 
 `.github/labeler.yml` (the per-repo config the action consumes):
@@ -817,7 +817,7 @@ jobs:
       web: ${{ steps.f.outputs.web }}
       api: ${{ steps.f.outputs.api }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - id: f
         uses: dorny/paths-filter@v4
         with:
@@ -902,7 +902,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: nkg/github-actions/.github/actions/setup-sops@v3
         with:
           age-key: ${{ secrets.SOPS_AGE_KEY }}
@@ -920,13 +920,13 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: nkg/github-actions/.github/actions/setup-deps-reader@v3
         with:
           app-client-id: ${{ vars.DEPS_READER_CLIENT_ID }}
           app-private-key: ${{ secrets.DEPS_READER_PRIVATE_KEY }}
           repositories: sproncy-schemas,sproncy-secrets-core
-      - uses: astral-sh/setup-uv@v7
+      - uses: astral-sh/setup-uv@v10
       - run: uv sync --frozen
 ```
 
@@ -937,7 +937,7 @@ jobs:
   scan:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: nkg/github-actions/.github/actions/setup-trivy@v3
       - run: trivy fs --severity HIGH,CRITICAL .
 
@@ -958,7 +958,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: nkg/github-actions/.github/actions/setup-mise@v3   # runs `mise install` from .mise.toml
       - run: mise run build
 ```
@@ -970,7 +970,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: nkg/github-actions/.github/actions/setup-go@v3
         with:
           go-version: "1.23"
@@ -994,7 +994,7 @@ jobs:
           app-client-id: ${{ vars.APP_CLIENT_ID }}
           app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
           permission-contents: write          # omit all permission-* for the installation's full set
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           token: ${{ steps.token.outputs.token }}
       - run: git push

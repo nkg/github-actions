@@ -7,7 +7,7 @@ on:
         description: "OpenTofu version. Ignored when use-mise is true — the version then comes from the consumer's mise.toml."
         type: string
         # renovate: datasource=github-releases depName=opentofu/opentofu
-        default: "1.12.1"
+        default: "1.12.6"
       use-mise:
         description: |
           Install OpenTofu via mise (reads the consumer's mise.toml) instead
@@ -56,7 +56,7 @@ jobs:
       run:
         working-directory: ${{ inputs.working-directory }}
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # Full path + floating major tag: a relative ./.github/actions path
       # inside a reusable resolves against the consumer's checkout, not this
@@ -83,7 +83,7 @@ jobs:
           EOF
           fi
 
-      - uses: opentofu/setup-opentofu@847eaa4afeb791b06daa46e8eafa8b1b68d7cfb4 # v2.0.1
+      - uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4 # v2.0.2
         if: ${{ !inputs.use-mise }}
         with:
           tofu_version: ${{ inputs.tofu-version }}
