@@ -85,7 +85,38 @@ jobs:
           # ERE that matches common secret-assignment forms in config files.
           # Anchors on the key name so prose hits like "this is a token for X"
           # are excluded by the [:=] requirement.
-          pattern='(password|passwd|secret|api[_-]?key|token|private[_-]?key|access[_-]?key)[[:space:]]*[:=][[:space:]]*["'"'"']?[A-Za-z0-9/_+.=-]{8,}'
+          KEY='(password|passwd|secret|api[_-]?key|token|private[_-]?key|access[_-]?key)'
+          SEP='[[:space:]]*[:=][[:space:]]*'
+          Q='["'"'"']?'
+          pattern="${KEY}${SEP}${Q}[A-Za-z0-9/_+.=-]{8,}"
+
+          # --- Allowlist -------------------------------------------------
+          # The pattern above has no notion of what a value MEANS, so
+          # ordinary configuration trips it: `update_password: on_create` is
+          # the documented API of ansible.builtin.user, and `on_create`
+          # clears the 8-character floor. Consumers cannot reword task code
+          # around it, and their only lever was excluding a whole file from
+          # scanning — disarming real detection to silence one line.
+          #
+          # Two classes are suppressed, both cases where the value CANNOT be
+          # a secret:
+          #
+          #   1. Indirection — the value names something else rather than
+          #      being the thing. Jinja/Go templates, shell and env
+          #      expansion, Ansible vault refs, lookups, and SOPS ciphertext.
+          IND="${KEY}${SEP}${Q}([{][{]|[$][{]|[$][A-Za-z_]|ENC[[]|!vault|lookup[(])"
+          #
+          #   2. Config enums — a closed set of literals that are values of
+          #      a setting, not credentials.
+          ENUMS='on_create|always|never|absent|present|true|false|yes|no|none|null|enabled|disabled|required|optional|latest|stable|default|auto|ignore|prompt'
+          ENUM="${KEY}${SEP}${Q}(${ENUMS})${Q}[[:space:]]*(#.*)?$"
+          #
+          # Deliberately NOT allowlisted: changeme, placeholder, secret,
+          # password and friends. Those are plausible real bad values and
+          # must keep failing. The allowlist only ever suppresses; it never
+          # widens what counts as a secret.
+          #
+          # See https://github.com/nkg/github-actions/issues/74
           any=0
           while IFS= read -r file; do
             # Skip via case-globs from input.
@@ -102,13 +133,22 @@ jobs:
               *.env|*.yml|*.yaml|*.json|*.toml) ;;
               *) continue ;;
             esac
-            # Don't flag SOPS-encrypted files (the ciphertext can look secret-ish).
-            if grep -q -E '^sops:|^sops_|"sops"' "$file" 2>/dev/null; then
+            # Don't flag SOPS-encrypted files (the ciphertext can look
+            # secret-ish). `[sops]` is the TOML form of the metadata block;
+            # without it an encrypted .toml was scanned rather than skipped,
+            # even though .toml is in the extension list above.
+            if grep -q -E '^sops:|^sops_|"sops"|^\[sops\]' "$file" 2>/dev/null; then
               continue
             fi
-            if grep -E -i -q "$pattern" "$file" 2>/dev/null; then
+            # Match, then drop the allowlisted forms. Reported from the same
+            # filtered list that decides pass/fail, so what you are shown is
+            # exactly what failed the build.
+            hits=$(grep -E -i -n "$pattern" "$file" 2>/dev/null \
+                     | grep -v -E -i "$IND" \
+                     | grep -v -E -i "$ENUM" || true)
+            if [ -n "$hits" ]; then
               echo "::error file=$file::potential plaintext secret"
-              grep -E -i -n "$pattern" "$file" | head -5
+              printf '%s\n' "$hits" | head -5
               any=1
             fi
           done < <(git ls-files)
