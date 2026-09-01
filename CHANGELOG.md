@@ -6,6 +6,50 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ## [Unreleased]
 
+## [3.2.1] - 2026-09-01
+
+### Fixed
+
+- `sops-audit.yml` — the plaintext-secret scan no longer flags values that
+  cannot be secrets. Two classes are now allowlisted:
+
+  - **Indirection** — the value names a secret rather than being one:
+    Jinja/Go templates (`{{ ... }}`), shell and env expansion (`${VAR}`,
+    `$VAR`), Ansible vault refs (`!vault`), `lookup(...)`, and SOPS
+    ciphertext (`ENC[`).
+  - **Config enums** — a closed set of literals that are settings, not
+    credentials: `on_create`, `always`, `never`, `true`/`false`,
+    `enabled`/`disabled`, `latest`, `default` and friends.
+
+  The scan keys off the *name* on the left of the `:`/`=`, so ordinary
+  configuration tripped it — `update_password: on_create` is the documented
+  API of `ansible.builtin.user`, and `on_create` clears the 8-character
+  floor. Consumers could not reword the task, and their only lever was
+  excluding the whole file from scanning, disarming real detection to
+  silence one line. See [#74](https://github.com/nkg/github-actions/issues/74).
+
+  Deliberately still flagged: `changeme`, `placeholder`, `secret`,
+  `password` and friends — plausible real bad values. The allowlist only
+  ever suppresses; it never widens what counts as a secret.
+
+- `sops-audit.yml` — SOPS-encrypted **TOML** files are now skipped like every
+  other encrypted file. The skip test matched `sops:`, `sops_` and `"sops"`
+  but not TOML's `[sops]` metadata block, so an encrypted `.toml` was scanned
+  against its own ciphertext.
+
+- `sops-audit.yml` — the reported lines are now taken from the same filtered
+  list that decides pass/fail, so what the annotation shows is exactly what
+  failed the build.
+
+### Added
+
+- `tests/plaintext-scan.test.sh` plus a `plaintext-scan` job in `self-test.yml`.
+  The allowlist can only make the scan *less* sensitive — the direction that
+  fails silently — and it reaches every consumer through the floating major
+  tag. Half the fixtures are real secrets that must still be caught, so
+  widening the allowlist carelessly turns self-test red instead of quietly
+  turning detection off.
+
 ## [3.2.0] - 2026-08-30
 
 ### Added
@@ -1063,7 +1107,8 @@ README; everything below is the actual content of this repo.
 - Bumped `actions/checkout` from `@v4` to `@v6` across all existing
   workflows for consistency with new files.
 
-[Unreleased]: https://github.com/nkg/github-actions/compare/v3.2.0...HEAD
+[Unreleased]: https://github.com/nkg/github-actions/compare/v3.2.1...HEAD
+[3.2.1]: https://github.com/nkg/github-actions/compare/v3.2.0...v3.2.1
 [3.2.0]: https://github.com/nkg/github-actions/compare/v3.1.0...v3.2.0
 [3.1.0]: https://github.com/nkg/github-actions/compare/v3.0.1...v3.1.0
 [3.0.1]: https://github.com/nkg/github-actions/compare/v3.0.0...v3.0.1
