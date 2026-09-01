@@ -19,6 +19,19 @@ jobs:
       runs-on: '["ubuntu-latest"]'
       yamllint-paths: ".github/ .yamllint.yml"
 
+  # The plaintext-secret scan in sops-audit.yml reaches every consumer repo
+  # through the floating @v2 tag, and its allowlist can only make the scan
+  # LESS sensitive — the direction that fails silently. Half these fixtures
+  # are real secrets that must still be caught, so widening the allowlist
+  # carelessly turns this red instead of quietly turning detection off.
+  plaintext-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Plaintext-secret scan fixtures
+        run: ./tests/plaintext-scan.test.sh
+
   composite-actions-syntax:
     runs-on: ubuntu-latest
     timeout-minutes: 10
