@@ -25,6 +25,20 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
   would let an annotation bind across arbitrary text to an unrelated
   `default:` further down the file.
 
+- Added `.betterleaks.toml` so this repo's own secret scan runs clean.
+  `tests/plaintext-scan.test.sh` is a corpus of deliberately secret-shaped
+  fixtures — half of them true-positives by design, feeding the sops-audit
+  plaintext scanner — so the default rules flagged three of them on every
+  full-history scan. That blocked the `pre-push` betterleaks hook for
+  everyone, from a clean tree, on a branch that had touched nothing related.
+
+  The allowlist is scoped to that single path rather than `tests/**`, and
+  `[extend] useDefault = true` keeps the full 417-rule default set. Both
+  matter: a config file without `extend` *replaces* the built-in rules
+  instead of adding to them, which would disarm the scan while continuing
+  to report success — the same fail-quiet direction the sops-audit
+  allowlist guards against.
+
 ## [3.2.1] - 2026-09-01
 
 ### Fixed

@@ -1,0 +1,28 @@
+# betterleaks configuration for this repository's own scans.
+#
+# secret-scan.yml auto-discovers this file (config-path defaults to empty),
+# and so do the lefthook betterleaks hooks. It governs THIS repo only —
+# consumers of the reusable workflow bring their own config.
+
+title = "nkg/github-actions"
+
+# Keep the full default ruleset. Without this the file would REPLACE the
+# built-in rules rather than add to them, silently disarming the scan —
+# the same fail-quiet direction the sops-audit allowlist guards against.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = """
+tests/plaintext-scan.test.sh is a corpus of deliberately secret-shaped
+strings: it feeds fixtures to the sops-audit plaintext scanner and asserts
+which ones are caught. Half of them are true-positives by design, so the
+default rules flag them on every full-history scan (generic-password and
+generic-api-key, all low confidence).
+
+Scoped to this one path rather than tests/** — the rest of the tree, test
+files included, stays covered.
+"""
+paths = [
+  '''^tests/plaintext-scan\.test\.sh$''',
+]
