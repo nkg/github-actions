@@ -6,6 +6,25 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ## [Unreleased]
 
+### Fixed
+
+- Renovate's `customManager` now matches every `# renovate:` annotation in
+  the repo (8 of 8, previously 5). The regex anchored `default:` to the line
+  *immediately* after the comment, so three inputs that carried a `type:`
+  line in between — `actionlint-version`, `betterleaks-version` and
+  `taplo-version` — were silently skipped. Those pins would never have been
+  offered an update, and a dashboard with nothing on it looks identical to
+  one where everything is current.
+
+  Two changes, belt and braces: the three annotations moved to sit directly
+  above their `default:`, matching the convention the other five already
+  followed; and the regex now tolerates intervening `type:`/`required:`
+  lines so the next input added does not reintroduce the problem. The skip
+  list stops at those two keys deliberately — both are always single-line
+  scalars, whereas `description:` is often a `|` block, and skipping it
+  would let an annotation bind across arbitrary text to an unrelated
+  `default:` further down the file.
+
 ## [3.2.1] - 2026-09-01
 
 ### Fixed
