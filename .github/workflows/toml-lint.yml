@@ -13,8 +13,8 @@ on:
         type: string
         default: '["ubuntu-latest"]'
       taplo-version:
-        # renovate: datasource=github-releases depName=tamasfe/taplo
         type: string
+        # renovate: datasource=github-releases depName=tamasfe/taplo
         default: "0.10.0"
       run-fmt-check:
         type: boolean

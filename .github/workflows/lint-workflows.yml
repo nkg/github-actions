@@ -11,8 +11,8 @@ on:
         type: string
         default: '["ubuntu-latest"]'
       actionlint-version:
-        # renovate: datasource=github-releases depName=rhysd/actionlint
         type: string
+        # renovate: datasource=github-releases depName=rhysd/actionlint
         default: "1.7.12"
       actionlint-ignore:
         description: "Newline-separated -ignore patterns. Each becomes one `-ignore PATTERN` arg."

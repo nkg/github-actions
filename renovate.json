@@ -25,7 +25,7 @@
       "description": "Update pinned versions referenced as input defaults",
       "fileMatch": ["^\\.github/(workflows|actions)/.+\\.ya?ml$"],
       "matchStrings": [
-        "#\\s*renovate:\\s*datasource=(?<datasource>.+?)\\s+depName=(?<depName>.+?)(?:\\s+versioning=(?<versioning>.+?))?\\s*\\n\\s*default:\\s*[\"']?(?<currentValue>[^\"'\\s]+)"
+        "#\\s*renovate:\\s*datasource=(?<datasource>.+?)\\s+depName=(?<depName>.+?)(?:\\s+versioning=(?<versioning>.+?))?[ \\t]*\\n(?:[ \\t]*(?:type|required):[^\\n]*\\n)*[ \\t]*default:[ \\t]*[\"']?(?<currentValue>[^\"'\\s]+)"
       ]
     }
   ]
