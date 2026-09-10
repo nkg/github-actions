@@ -127,6 +127,16 @@ on:
         description: "Package pattern to fuzz"
         type: string
         default: "./..."
+      go-cache:
+        description: |
+          Cache the Go module and build directories via actions/setup-go.
+          Set false on runners where the post-job cache save is unreliable:
+          on containerized self-hosted runners the `tar` that packs a cold
+          cgo-heavy build cache has been observed to wedge, burning the job's
+          whole timeout in the "Post Set up Go" step. Only applies to the
+          setup-go path (use-mise: false).
+        type: boolean
+        default: true
       postgres-enabled:
         description: |
           Start a throwaway Postgres container before the test step and export
@@ -149,6 +159,13 @@ on:
       postgres-db:
         type: string
         default: "postgres"
+      postgres-ready-timeout:
+        description: |
+          Seconds to wait for Postgres to accept TCP connections before
+          failing. The image is pulled before the clock starts, so this
+          budgets container init only.
+        type: number
+        default: 60
     secrets:
       DEPS_READER_PRIVATE_KEY:
         description: "Private key for the deps-reader GitHub App (required when deps-reader-client-id is set)"
@@ -198,6 +215,7 @@ jobs:
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: ${{ inputs.go-version }}
+          cache: ${{ inputs.go-cache }}
           cache-dependency-path: ${{ inputs.working-directory }}/go.sum
 
       # setup-go caches the module/build dirs itself; the mise path has no
@@ -279,6 +297,7 @@ jobs:
           PG_USER: ${{ inputs.postgres-user }}
           PG_PASSWORD: ${{ inputs.postgres-password }}
           PG_DB: ${{ inputs.postgres-db }}
+          PG_READY_TIMEOUT: ${{ inputs.postgres-ready-timeout }}
         run: |
           set -euo pipefail
           # On self-hosted runners the workspace isn't ephemeral, so a
@@ -286,6 +305,12 @@ jobs:
           # skipped teardown) collides on the `ci-postgres` name. Remove any
           # stale one first so the step is idempotent and self-healing.
           docker rm -f ci-postgres >/dev/null 2>&1 || true
+          # Pull before starting the readiness clock. A cold pull of the
+          # postgres image on a slow runner used to eat most of the budget,
+          # so the wait below timed out on container init that had barely
+          # begun — the failure looked like a hung database rather than a
+          # slow download.
+          docker pull -q "$PG_IMAGE"
           docker run -d --name ci-postgres \
             -e POSTGRES_USER="$PG_USER" \
             -e POSTGRES_PASSWORD="$PG_PASSWORD" \
@@ -293,7 +318,7 @@ jobs:
             -p 5432:5432 \
             "$PG_IMAGE"
           # Poll pg_isready inside the container until it accepts connections
-          # (image pull + init can take a few seconds), capped at ~60s.
+          # (init can take a few seconds), capped at postgres-ready-timeout.
           #
           # -h 127.0.0.1 IS THE POINT, not decoration. On first init the
           # postgres image's entrypoint runs a TEMPORARY server so it can
@@ -307,14 +332,14 @@ jobs:
           # and gets `FATAL 57P03 (cannot_connect_now) the database system is
           # starting up`. Probing TCP cannot pass early: pg_isready exits 1
           # ("rejecting connections") for the whole of that window.
-          for i in $(seq 1 60); do
+          for i in $(seq 1 "$PG_READY_TIMEOUT"); do
             if docker exec ci-postgres \
                  pg_isready -h 127.0.0.1 -p 5432 -U "$PG_USER" -d "$PG_DB" >/dev/null 2>&1; then
               echo "postgres accepting TCP connections after ${i}s"
               break
             fi
-            if [ "$i" = "60" ]; then
-              echo "::error::postgres did not become ready in 60s"
+            if [ "$i" = "$PG_READY_TIMEOUT" ]; then
+              echo "::error::postgres did not become ready in ${PG_READY_TIMEOUT}s"
               docker logs ci-postgres || true
               exit 1
             fi
