@@ -8,6 +8,32 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ### Fixed
 
+- `docker-build.yml` no longer fails the Trivy image scan and SBOM step for
+  orgs whose name contains uppercase letters. The digest-based refs were
+  assembled by hand from the raw `image-name` input — normally
+  `github.repository`, which preserves casing — while `docker/metadata-action`
+  lowercases internally for the push tags. Trivy rejected the result with
+  `could not parse reference: ghcr.io/HordiaLabs/store-postgres@sha256:...`,
+  so every push to the default branch failed at the scan step even though the
+  image had built and pushed cleanly. A new `Resolve image ref` step
+  lowercases registry + name once, and the three digest refs use it.
+  Lowercasing uses `tr` rather than bash 4's `${VAR,,}`, since this reusable
+  also runs on self-hosted macOS runners, where bash is still 3.2.
+
+- `go.yml` gained `go-cache` (default `true`, unchanged behaviour). Setting it
+  `false` skips `actions/setup-go`'s module/build cache on runners where the
+  post-job save is unreliable: on a containerized self-hosted runner the `tar`
+  that packs a cold cgo-heavy build cache has been seen to wedge, still
+  running 28 minutes later and consuming the job's entire 30-minute timeout in
+  the `Post Set up Go` step, after every real step had passed.
+
+- `go.yml` now pulls the Postgres image before starting the readiness clock,
+  and the wait is configurable via `postgres-ready-timeout` (default `60`,
+  unchanged). A cold pull on a slow runner used to consume most of the 60s
+  budget, so the wait expired on container init that had barely started —
+  reported as `postgres did not become ready in 60s` while the container log
+  showed the server coming up right at the boundary.
+
 - Renovate's `customManager` now matches every `# renovate:` annotation in
   the repo (8 of 8, previously 5). The regex anchored `default:` to the line
   *immediately* after the comment, so three inputs that carried a `type:`
