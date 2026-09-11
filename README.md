@@ -60,10 +60,19 @@ with:
   runs-on: '["self-hosted", "linux", "x64"]'
 ```
 
-**Exception:** `claude.yml` and `claude-code-review.yml` default to the
-self-hosted pool (`'["self-hosted", "linux", "x64"]'`) since Claude jobs
-run on private repos. Public/open-source consumers opt out with
+**Exception:** `claude.yml` defaults to the self-hosted pool
+(`'["self-hosted", "linux", "x64"]'`). Consumers opt out with
 `runs-on: '["ubuntu-latest"]'`.
+
+`claude-code-review.yml` **defaulted to self-hosted until v3.4.0** and now
+defaults to `'["ubuntu-24.04"]'`. It reads a PR diff and calls the Claude API,
+so it needs nothing a self-hosted runner provides — and on a contended pool it
+queued 40-77 minutes for 3-6 minutes of work, so reviews landed after the PR
+had merged. Pass `runs-on: '["self-hosted", "linux", "x64"]'` to opt back in.
+
+Consumer-side runner conventions (the `RUNNER_POOL` and `DIND_POOL` variables,
+the jobs deliberately pinned to self-hosted, and how to flip or revert either)
+are documented in [RUNNERS.md](RUNNERS.md).
 
 The Sproncy self-hosted fleet uses capability labels (`dind`, `fast`, `slow`
 for AI workloads). `.github/actionlint.yaml` declares them so `actionlint`
@@ -115,8 +124,9 @@ with `fromJSON`. Pass a quoted JSON array — not a bare label:
 
 A bare string like `runs-on: ubuntu-latest` (or unquoted `'[self-hosted, ...]'`)
 will not parse and the job will fail to schedule. The default is
-`'["ubuntu-latest"]'` for every reusable except the `claude*` bot workflows,
-which default to the self-hosted pool.
+`'["ubuntu-latest"]'` for every reusable except `claude.yml`, which defaults to
+the self-hosted pool. (`claude-code-review.yml` did too until v3.4.0; it now
+defaults to `'["ubuntu-24.04"]'` — see [RUNNERS.md](RUNNERS.md).)
 
 ## Consuming a composite action
 
@@ -188,8 +198,9 @@ steps:
 ## Self-hosted runners
 
 Every reusable workflow accepts a `runs-on` input. Most default to
-`'["ubuntu-latest"]'`; the Claude workflows (`claude.yml`,
-`claude-code-review.yml`) default to `'["self-hosted", "linux", "x64"]'`.
+`'["ubuntu-latest"]'`; `claude.yml` defaults to
+`'["self-hosted", "linux", "x64"]'`. `claude-code-review.yml` did too until
+v3.4.0 and now defaults to `'["ubuntu-24.04"]'`.
 Pass `runs-on: '["self-hosted", "linux", "x64"]'` (or a longer label array
 like `'["self-hosted", "linux", "x64", "dind"]'`) to route to your own
 runner pool, or `runs-on: '["ubuntu-latest"]'` to opt back onto
