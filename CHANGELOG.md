@@ -6,6 +6,8 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ## [Unreleased]
 
+## [3.4.0] - 2026-09-11
+
 ### Changed
 
 - **`claude-code-review.yml` now defaults to a GitHub-hosted runner**
@@ -1196,6 +1198,7 @@ README; everything below is the actual content of this repo.
   workflows for consistency with new files.
 
 [Unreleased]: https://github.com/nkg/github-actions/compare/v3.3.0...HEAD
+[3.4.0]: https://github.com/nkg/github-actions/compare/v3.3.0...v3.4.0
 [3.3.0]: https://github.com/nkg/github-actions/compare/v3.2.1...v3.3.0
 [3.2.1]: https://github.com/nkg/github-actions/compare/v3.2.0...v3.2.1
 [3.2.0]: https://github.com/nkg/github-actions/compare/v3.1.0...v3.2.0
