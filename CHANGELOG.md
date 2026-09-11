@@ -6,6 +6,14 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ## [Unreleased]
 
+## [3.3.0] - 2026-09-10
+
+### Added
+
+- `go.yml` inputs `go-cache` (default `true`) and `postgres-ready-timeout`
+  (default `60`). Both defaults preserve existing behaviour; see the Fixed
+  entries below for why they exist.
+
 ### Fixed
 
 - `docker-build.yml` no longer fails the Trivy image scan and SBOM step for
@@ -1166,7 +1174,8 @@ README; everything below is the actual content of this repo.
 - Bumped `actions/checkout` from `@v4` to `@v6` across all existing
   workflows for consistency with new files.
 
-[Unreleased]: https://github.com/nkg/github-actions/compare/v3.2.1...HEAD
+[Unreleased]: https://github.com/nkg/github-actions/compare/v3.3.0...HEAD
+[3.3.0]: https://github.com/nkg/github-actions/compare/v3.2.1...v3.3.0
 [3.2.1]: https://github.com/nkg/github-actions/compare/v3.2.0...v3.2.1
 [3.2.0]: https://github.com/nkg/github-actions/compare/v3.1.0...v3.2.0
 [3.1.0]: https://github.com/nkg/github-actions/compare/v3.0.1...v3.1.0
