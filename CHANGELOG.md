@@ -6,6 +6,27 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ## [Unreleased]
 
+### Changed
+
+- **`claude-code-review.yml` now defaults to a GitHub-hosted runner**
+  (`["ubuntu-24.04"]`) instead of `["self-hosted", "linux", "x64"]`. The job
+  reads a PR diff and calls the Claude API — it needs no private-network
+  access, no local toolchain and no persistent state, so a self-hosted runner
+  bought it nothing while costing a great deal on a contended pool: measured
+  queue times of 40–77 minutes for 3–6 minutes of work, reviews routinely
+  landing after the PR had already merged, and outright failure at runner
+  assignment in roughly one run in six. Both faults are queueing artefacts
+  rather than review problems.
+
+  **This changes behaviour for every consumer that does not pass `runs-on`
+  explicitly** — currently all but one. Consumers that want the old behaviour
+  pass `runs-on: '["self-hosted", "linux", "x64"]'`, which is what
+  `sproncy/monitoring_stack` already does and is therefore unaffected.
+
+  Hosted minutes are metered on private repos; a review is 3–6 minutes, so
+  budget accordingly. The image is pinned to a dated label rather than
+  `ubuntu-latest` so a GitHub-side bump is an intentional, reviewable change.
+
 ## [3.3.0] - 2026-09-10
 
 ### Added

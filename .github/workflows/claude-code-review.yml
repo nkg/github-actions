@@ -7,9 +7,21 @@ on:
   workflow_call:
     inputs:
       runs-on:
-        description: "Runner label(s) as a JSON array string (parsed with fromJSON). Defaults to the self-hosted pool. Public/open-source repos opt out by passing '[\"ubuntu-latest\"]'."
+        description: "Runner label(s) as a JSON array string (parsed with fromJSON). Defaults to a GitHub-hosted image; pass '[\"self-hosted\", \"linux\", \"x64\"]' to use a self-hosted pool instead."
         type: string
-        default: '["self-hosted", "linux", "x64"]'
+        # GitHub-hosted by default. This job reads the PR diff and calls the
+        # Claude API -- it needs no private-network access, no local toolchain
+        # and no persistent state, so a self-hosted runner buys it nothing.
+        #
+        # It cost quite a lot, though: on a contended pool the review queued
+        # 40-77 minutes for 3-6 minutes of work, routinely finishing after the
+        # PR had already merged, and failed outright at runner assignment
+        # roughly one run in six. Both faults are queueing artefacts, not
+        # review problems.
+        #
+        # Pinned to a dated image rather than ubuntu-latest so a GitHub-side
+        # image bump is an intentional, reviewable change.
+        default: '["ubuntu-24.04"]'
       timeout-minutes:
         type: number
         default: 30
