@@ -6,6 +6,33 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ## [Unreleased]
 
+### Added
+
+- **`docker-build.yml` gained an `upload-sarif` input** (boolean, default
+  `true`, mirroring the input of the same name on `trivy-repo.yml`). Uploading
+  a SARIF report to code scanning requires GitHub Advanced Security, which
+  private repos on the Free plan do not have, so the `Upload SARIF` step failed
+  with `Advanced Security must be enabled for this repository to use code
+  scanning` on every push to `main` while the Trivy scan immediately above it
+  passed. That is a permanently red check reporting an entitlement rather than
+  a security finding. Consumers on the Free plan pass `upload-sarif: false`;
+  the SARIF generation step is gated on the same input, so nothing is produced
+  that cannot be uploaded. Default is `true`, so existing behaviour is
+  unchanged for anyone who has Advanced Security.
+
+### Fixed
+
+- **`docker-build.yml` no longer runs `docker/setup-qemu-action` for
+  single-architecture builds.** QEMU exists only to emulate a foreign
+  architecture; the runners are all X64 and `platforms` defaults to
+  `linux/amd64`, so for most consumers the step installed binfmt handlers that
+  nothing subsequently used. It is not free: **16m18s** on one observed
+  `extractor-llm` run, ahead of a build that never needed it, on a three-runner
+  pool where queueing is the dominant cost. The step is now skipped when
+  `platforms` is exactly `linux/amd64`. The two consumers that genuinely
+  cross-build — `scraper-proxy-router` (always) and `store-s3` (on `main`) —
+  request `linux/arm64` and still get QEMU.
+
 ### Changed
 
 - **`claude-code-review.yml` now defaults to a GitHub-hosted runner**
