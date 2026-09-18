@@ -34,6 +34,33 @@ on:
         description: "Runner label(s) as a JSON array string (parsed with fromJSON). Pass '[\"self-hosted\", \"linux\", \"x64\"]' to use the self-hosted pool."
         type: string
         default: '["ubuntu-latest"]'
+      revert-app-client-id:
+        description: >-
+          Optional. Client ID of a GitHub App whose installation has
+          Workflows: write, used to push the revert branch.
+
+          GITHUB_TOKEN — the default — is issued by GitHub's own Actions App and
+          is categorically forbidden from creating or updating any file under
+          .github/workflows/. There is no `permissions:` key that grants it;
+          pushing a revert of a commit that touched a workflow file fails with
+          "refusing to allow a GitHub App to create or update workflow ...
+          without `workflows` permission". So without this input a workflow-file
+          regression cannot be reverted automatically. The job opens an issue
+          instead of failing (see below).
+
+          Set this, with the `REVERT_APP_PRIVATE_KEY` secret, to revert those
+          commits too. Use a dedicated App: a token that can rewrite workflow
+          files can rewrite CI itself, so it wants its own key and its own
+          installation rather than sharing one with deps-reader.
+        type: string
+        default: ""
+    secrets:
+      REVERT_APP_PRIVATE_KEY:
+        description: >-
+          Private key of the App named by `revert-app-client-id`. Required only
+          when that input is set; without it the job falls back to GITHUB_TOKEN
+          and opens an issue for workflow-file regressions instead of reverting.
+        required: false
 
 jobs:
   open-revert-pr:
@@ -42,16 +69,32 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+      # issues: write is the fallback path — when the bad commit touched a
+      # workflow file and no App is configured, the job opens an issue rather
+      # than failing on a push GITHUB_TOKEN is never allowed to make.
+      issues: write
     steps:
+      - name: Mint revert token
+        id: revert-token
+        if: inputs.revert-app-client-id != ''
+        uses: nkg/github-actions/.github/actions/setup-token@v3
+        with:
+          app-client-id: ${{ inputs.revert-app-client-id }}
+          app-private-key: ${{ secrets.REVERT_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+          permission-workflows: write
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           ref: ${{ inputs.default-branch }}
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ steps.revert-token.outputs.token || secrets.GITHUB_TOKEN }}
 
       - name: Open revert PR
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.revert-token.outputs.token || secrets.GITHUB_TOKEN }}
+          HAVE_WORKFLOW_SCOPE: ${{ inputs.revert-app-client-id != '' }}
           BAD_SHA: ${{ inputs.bad-sha }}
           FAILED_RUN_URL: ${{ inputs.failed-run-url }}
           DEFAULT_BRANCH: ${{ inputs.default-branch }}
@@ -74,6 +117,48 @@ jobs:
 
           short="${BAD_SHA:0:7}"
           branch="auto-revert/${short}"
+
+          # GITHUB_TOKEN cannot push a commit that touches .github/workflows/,
+          # ever — it is a platform rule, not a `permissions:` we forgot to
+          # grant. Detect it here rather than letting `git push` fail after the
+          # revert commit is already made: that produced a red check whose log
+          # said "refusing to allow a GitHub App to create or update workflow",
+          # which reads like a misconfiguration and buries the actual CI
+          # failure it was reacting to.
+          #
+          # Open an issue instead, so the regression is still surfaced loudly.
+          # Configure revert-app-client-id to revert these automatically.
+          # `diff-tree -r <sha>` lists nothing for a merge commit, and the bad
+          # SHA is usually a merge — diffing against the first parent covers
+          # both shapes.
+          changed=$(git diff --name-only "${BAD_SHA}^1" "$BAD_SHA")
+
+          if [[ "$HAVE_WORKFLOW_SCOPE" != "true" ]] \
+             && grep -q '^\.github/workflows/' <<<"$changed"; then
+            echo "$short touches .github/workflows/ and no revert App is configured."
+            title="main is red at ${short} and cannot be auto-reverted"
+            if gh issue list --search "$title in:title" --state open --json number --jq 'length' | grep -q '^[1-9]'; then
+              echo "issue already open — skipping"
+              exit 0
+            fi
+            cat >/tmp/revert-issue.md <<EOF
+          CI failed on \`${DEFAULT_BRANCH}\` at \`${short}\`.
+
+          [Failed run](${FAILED_RUN_URL})
+
+          That commit changes files under \`.github/workflows/\`, and this job
+          pushes with \`GITHUB_TOKEN\`, which GitHub forbids from creating or
+          updating workflow files. No \`permissions:\` grant lifts that, so the
+          revert branch could not be pushed and **no revert PR was opened** --
+          revert or fix forward by hand.
+
+          To automate this case, pass \`revert-app-client-id\` (plus a
+          \`REVERT_APP_PRIVATE_KEY\` secret) for a GitHub App installation that
+          has **Workflows: read and write**.
+          EOF
+            gh issue create --title "$title" --body-file /tmp/revert-issue.md
+            exit 0
+          fi
 
           # Skip if a revert PR for this SHA already exists.
           if gh pr list --head "$branch" --state all --json number --jq 'length' | grep -q '^[1-9]'; then
