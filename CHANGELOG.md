@@ -6,6 +6,35 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ## [Unreleased]
 
+### Fixed
+
+- **`auto-revert-on-main-failure.yml` no longer fails outright when the bad
+  commit touched a workflow file.** It pushes with `GITHUB_TOKEN`, which GitHub
+  categorically forbids from creating or updating anything under
+  `.github/workflows/` — `workflows` is not among the grantable `permissions:`
+  scopes, so this was never a misconfiguration that could be corrected. The
+  push was rejected *after* the revert commit was made, and the job died with
+  `refusing to allow a GitHub App to create or update workflow ... without
+  'workflows' permission`: a red check that reads like a setup error and buries
+  the CI failure it was reacting to. The job now detects that case before
+  committing and **opens an issue** instead, so the regression is still
+  surfaced. Callers need `issues: write` for that path (the example stub is
+  updated).
+
+  Two latent bugs found while fixing it: the path check has to diff against the
+  first parent, because `git diff-tree -r <sha>` lists nothing for a merge
+  commit and the bad SHA usually *is* a merge; and auto-revert has therefore
+  never once succeeded against a workflow-file regression.
+
+### Added
+
+- **`auto-revert-on-main-failure.yml` gained `revert-app-client-id` and a
+  `REVERT_APP_PRIVATE_KEY` secret**, both optional. When supplied, the revert
+  branch is pushed with a scoped App installation token carrying
+  `permission-workflows: write`, so workflow-file commits are reverted
+  automatically rather than raising an issue. Use a dedicated App: a credential
+  that can rewrite workflow files can rewrite CI itself.
+
 ## [3.5.0] - 2026-09-18
 
 ### Added

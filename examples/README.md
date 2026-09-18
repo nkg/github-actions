@@ -722,11 +722,40 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+      issues: write
     uses: nkg/github-actions/.github/workflows/auto-revert-on-main-failure.yml@v3
     with:
       bad-sha: ${{ github.event.workflow_run.head_sha }}
       failed-run-url: ${{ github.event.workflow_run.html_url }}
 ```
+
+**Commits that touch `.github/workflows/` cannot be auto-reverted by default.**
+The job pushes with `GITHUB_TOKEN`, which GitHub categorically forbids from
+creating or updating workflow files — there is no `permissions:` key that grants
+it. Left alone, the push is rejected *after* the revert commit is made, and the
+job fails with `refusing to allow a GitHub App to create or update workflow ...
+without 'workflows' permission`, which reads like a misconfiguration and buries
+the CI failure it was reacting to.
+
+Instead, the job detects that case up front and **opens an issue** rather than
+failing, so the regression is still surfaced. That is why the stub grants
+`issues: write`.
+
+To revert those commits automatically too, supply a GitHub App installation that
+has **Workflows: read and write**:
+
+```yaml
+    with:
+      bad-sha: ${{ github.event.workflow_run.head_sha }}
+      failed-run-url: ${{ github.event.workflow_run.html_url }}
+      revert-app-client-id: Iv23li...        # public, from the App's page
+    secrets:
+      REVERT_APP_PRIVATE_KEY: ${{ secrets.REVERT_APP_PRIVATE_KEY }}
+```
+
+Use a **dedicated** App for this, not one you already use for something else.
+A token that may rewrite workflow files can rewrite CI itself, so it wants its
+own key, its own installation, and only the repos that need it.
 
 **Client-side complement:** `auto-revert` reacts *after* bad code lands. Pair
 it with a `pre-push` git hook that runs the same checks CI runs, so broken
