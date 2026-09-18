@@ -76,6 +76,13 @@ on:
         description: "Pinned version of aquasecurity/trivy-action"
         type: string
         default: "0.36.0"
+      trivy-version:
+        description: |
+          Trivy binary version installed by the explicit setup step. Pinned
+          rather than left to the action's own default so a scan cannot start
+          reporting differently because upstream moved.
+        type: string
+        default: "v0.70.0"
       timeout-minutes:
         type: number
         default: 15
@@ -100,9 +107,41 @@ jobs:
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      # Install Trivy explicitly, with the binary cache OFF, and prove it
+      # landed before anything tries to scan with it.
+      #
+      # trivy-action installs Trivy itself and immediately scans, so a setup
+      # that half-works surfaces as `trivy: command not found` (exit 127) from
+      # the scan, naming neither the cause nor the step responsible. That is
+      # not hypothetical: it was hit on a self-hosted runner where
+      # actions/cache restored the binary to /home/runner/.local/bin/trivy-bin
+      # and reported "Cache restored successfully", the PATH step ran, and the
+      # binary still was not there. The host had a doubled
+      # /home/runner/runner/_work layout where its sibling in the same run had
+      # /home/runner/_work -- the pool is not uniform, and the cached path is
+      # derived from that layout.
+      #
+      # `cache: false` trades a ~45MB download per run for a restore path that
+      # cannot silently no-op. `trivy --version` then fails AT SETUP, loudly,
+      # instead of as a mystery 127 mid-scan.
+      - name: Install Trivy
+        # v0.2.6 deliberately, not the newer v0.3.x: this is the exact SHA
+        # trivy-action@0.36.0 pins internally, so the explicit step installs
+        # what the action would have installed itself. Bump the two together.
+        uses: aquasecurity/setup-trivy@3fb12ec12f41e471780db15c232d5dd185dcb514 # v0.2.6
+        with:
+          version: ${{ inputs.trivy-version }}
+          cache: false
+
+      - name: Verify Trivy is on PATH
+        run: trivy --version
+
       - name: Trivy scan (table)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
+          # Setup already happened above, verified. Letting the action do it
+          # again would restore the same unreliable cache path.
+          skip-setup-trivy: true
           scan-type: ${{ inputs.scan-type }}
           scan-ref: ${{ inputs.scan-ref }}
           format: table
@@ -157,9 +196,39 @@ jobs:
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      # Install Trivy explicitly, with the binary cache OFF, and prove it
+      # landed before anything tries to scan with it.
+      #
+      # trivy-action installs Trivy itself and immediately scans, so a setup
+      # that half-works surfaces as `trivy: command not found` (exit 127) from
+      # the scan, naming neither the cause nor the step responsible. That is
+      # not hypothetical: it was hit on a self-hosted runner where
+      # actions/cache restored the binary to /home/runner/.local/bin/trivy-bin
+      # and reported "Cache restored successfully", the PATH step ran, and the
+      # binary still was not there. The host had a doubled
+      # /home/runner/runner/_work layout where its sibling in the same run had
+      # /home/runner/_work -- the pool is not uniform, and the cached path is
+      # derived from that layout.
+      #
+      # `cache: false` trades a ~45MB download per run for a restore path that
+      # cannot silently no-op. `trivy --version` then fails AT SETUP, loudly,
+      # instead of as a mystery 127 mid-scan.
+      - name: Install Trivy
+        # v0.2.6 deliberately, not the newer v0.3.x: this is the exact SHA
+        # trivy-action@0.36.0 pins internally, so the explicit step installs
+        # what the action would have installed itself. Bump the two together.
+        uses: aquasecurity/setup-trivy@3fb12ec12f41e471780db15c232d5dd185dcb514 # v0.2.6
+        with:
+          version: ${{ inputs.trivy-version }}
+          cache: false
+
+      - name: Verify Trivy is on PATH
+        run: trivy --version
+
       - name: Trivy scan (SARIF)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
+          skip-setup-trivy: true
           scan-type: ${{ inputs.scan-type }}
           scan-ref: ${{ inputs.scan-ref }}
           format: sarif
