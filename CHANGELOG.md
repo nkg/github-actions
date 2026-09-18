@@ -8,6 +8,32 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ### Fixed
 
+- `trivy-repo.yml` — install Trivy in an explicit, verified step instead of
+  letting `trivy-action` do it inline, and pass `skip-setup-trivy: true`.
+
+  `trivy-action` installs Trivy and immediately scans, so a setup that
+  half-works surfaces as `trivy: command not found` (exit 127) from the scan,
+  naming neither the cause nor the step responsible. Hit on a self-hosted
+  runner where `actions/cache` restored the binary to
+  `/home/runner/.local/bin/trivy-bin`, logged *"Cache restored successfully"*,
+  ran the `$GITHUB_PATH` step — and the binary still was not there. That host
+  had a doubled `/home/runner/runner/_work` layout while its sibling in the
+  same run had `/home/runner/_work`; the pool is not uniform and the cached
+  path derives from that layout.
+
+  The new step sets `cache: false`, trading a ~45MB download per run for a
+  restore path that cannot silently no-op, and `trivy --version` then fails at
+  setup, loudly, rather than as a mystery 127 mid-scan. Applied to both the
+  table-scan and SARIF jobs, which shared the failure mode.
+
+### Added
+
+- `trivy-repo.yml` — `trivy-version` input (string, default `v0.70.0`),
+  pinning the Trivy binary the new setup step installs so a scan cannot start
+  reporting differently because upstream moved.
+
+### Fixed
+
 - **`auto-revert-on-main-failure.yml` no longer fails outright when the bad
   commit touched a workflow file.** It pushes with `GITHUB_TOKEN`, which GitHub
   categorically forbids from creating or updating anything under
