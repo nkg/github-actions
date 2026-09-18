@@ -6,6 +6,8 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ## [Unreleased]
 
+## [3.5.0] - 2026-09-18
+
 ### Added
 
 - **`docker-build.yml` gained an `upload-sarif` input** (boolean, default
@@ -32,6 +34,8 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
   `platforms` is exactly `linux/amd64`. The two consumers that genuinely
   cross-build — `scraper-proxy-router` (always) and `store-s3` (on `main`) —
   request `linux/arm64` and still get QEMU.
+
+## [3.4.0] - 2026-09-11
 
 ### Changed
 
