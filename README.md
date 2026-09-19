@@ -3,6 +3,11 @@
 Centralised reusable GitHub Actions workflows and composite actions for the
 Sproncy org. Consumed by ~20 sibling repos via `uses:` pinned tags.
 
+> **Hit something that looks like a misconfiguration and isn't?**
+> [`examples/ci-gotchas.md`](examples/ci-gotchas.md) documents six platform
+> behaviours that reliably cost an afternoon each, with the symptom, the cause
+> and the fix for every one.
+
 ## Layout
 
 ```

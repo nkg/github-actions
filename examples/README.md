@@ -3,6 +3,13 @@
 Drop these into `.github/workflows/*.yml` of a consumer repo. Replace
 `nkg/github-actions@v3` with a SHA when you need bit-for-bit pinning.
 
+> **Stuck on something that looks like a misconfiguration?** Check
+> [`ci-gotchas.md`](ci-gotchas.md) first. It covers six platform behaviours that
+> reliably waste an afternoon — concurrency groups that drop queued runs,
+> `GITHUB_TOKEN` being unable to write workflow files, Actions not being allowed
+> to open a PR, `diff-tree` going blind on merge commits, what the Free plan
+> withholds, and secret-scan recall changes that look like regressions.
+
 ## Python (uv)
 
 ```yaml
