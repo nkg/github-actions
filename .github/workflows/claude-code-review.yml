@@ -7,21 +7,42 @@ on:
   workflow_call:
     inputs:
       runs-on:
-        description: "Runner label(s) as a JSON array string (parsed with fromJSON). Defaults to a GitHub-hosted image; pass '[\"self-hosted\", \"linux\", \"x64\"]' to use a self-hosted pool instead."
+        description: "Runner label(s) as a JSON array string (parsed with fromJSON). Defaults to the self-hosted pool. Public/open-source repos opt out by passing '[\"ubuntu-24.04\"]'."
         type: string
-        # GitHub-hosted by default. This job reads the PR diff and calls the
-        # Claude API -- it needs no private-network access, no local toolchain
-        # and no persistent state, so a self-hosted runner buys it nothing.
+        # Self-hosted by default since 2026-09-20, matching claude.yml.
         #
-        # It cost quite a lot, though: on a contended pool the review queued
-        # 40-77 minutes for 3-6 minutes of work, routinely finishing after the
-        # PR had already merged, and failed outright at runner assignment
-        # roughly one run in six. Both faults are queueing artefacts, not
-        # review problems.
+        # On the merits, hosted is the better fit: this job reads the PR diff
+        # and calls the Claude API, so it needs no private-network access, no
+        # local toolchain and no persistent state, and a self-hosted runner
+        # buys it nothing. It cost quite a lot, too -- on a contended pool the
+        # review queued 40-77 minutes for 3-6 minutes of work, routinely
+        # finishing after the PR had already merged, and failed outright at
+        # runner assignment roughly one run in six. Both are queueing
+        # artefacts, not review problems, and both are still true.
         #
-        # Pinned to a dated image rather than ubuntu-latest so a GitHub-side
-        # image bump is an intentional, reviewable change.
-        default: '["ubuntu-24.04"]'
+        # What changed is that a hosted job may not run AT ALL. With Actions
+        # credits exhausted, every hosted job fails about two seconds after
+        # queueing with "The job was not started because recent account
+        # payments have failed or your spending limit needs to be increased".
+        # Across HordiaLabs, Sproncy and Regularmusic that is 41 private repos
+        # whose review check went permanently red on a default they never
+        # chose -- and because every OTHER workflow in those repos already
+        # passes a self-hosted `runs-on`, it reads as one flaky reviewer
+        # rather than as a billing stop.
+        #
+        # A slow, occasionally flaky review beats no review, and this one is
+        # advisory regardless: the claude-code-action step below is
+        # continue-on-error, so it cannot block a PR on either runner.
+        #
+        # PUBLIC REPOS SHOULD OPT OUT, and not only for the free minutes:
+        # running fork PRs on a self-hosted pool is the hazard GitHub warns
+        # about. No public repo consumes this reusable today (checked across
+        # the three orgs and nkg/*), so the default is safe as it stands --
+        # but a new public consumer must pass '["ubuntu-24.04"]'.
+        #
+        # Revisit when credits reset; hosted is the right default the moment
+        # it can actually start a job.
+        default: '["self-hosted", "linux", "x64"]'
       timeout-minutes:
         type: number
         default: 30
