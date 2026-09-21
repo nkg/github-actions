@@ -7,9 +7,20 @@ on:
   workflow_call:
     inputs:
       runs-on:
-        description: "Runner label(s) as a JSON array string (parsed with fromJSON). Pass '[\"self-hosted\", \"linux\", \"x64\"]' to use the self-hosted pool."
+        description: "Runner label(s) as a JSON array string (parsed with fromJSON). Defaults to the self-hosted pool. Public/open-source repos opt out by passing '[\"ubuntu-latest\"]'."
         type: string
-        default: '["ubuntu-latest"]'
+        # Self-hosted by default since 2026-09-20. Actions credits are
+        # exhausted across HordiaLabs, Sproncy and Regularmusic, so a hosted
+        # job fails ~2s after queueing with "The job was not started because
+        # recent account payments have failed or your spending limit needs to
+        # be increased". Consumers that relied on this default were therefore
+        # running nothing at all: 1 call (Sproncy/agent-skills).
+        #
+        # Every other consumer already passes `runs-on` explicitly, so this
+        # changes behaviour only for those that did not. Public repos should
+        # pass '["ubuntu-latest"]' -- fork PRs on a self-hosted pool are the
+        # hazard GitHub warns about; no public repo consumes this today.
+        default: '["self-hosted", "linux", "x64"]'
       actionlint-version:
         type: string
         # renovate: datasource=github-releases depName=rhysd/actionlint
