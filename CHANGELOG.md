@@ -6,6 +6,29 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ## [Unreleased]
 
+## [3.6.0] - 2026-09-21
+
+### Changed
+
+- **`claude-code-review.yml` defaults `runs-on` to the self-hosted pool**
+  (`'["self-hosted", "linux", "x64"]'`), matching `claude.yml`. Actions
+  credits are exhausted across HordiaLabs, Sproncy and Regularmusic, so a
+  GitHub-hosted job never starts — it fails ~2s after queueing with *"recent
+  account payments have failed or your spending limit needs to be
+  increased"* — and because every other job in those repos already runs
+  self-hosted, that read as one flaky reviewer rather than a billing stop.
+  41 private repos took the hosted default. The reasons hosted was chosen in
+  3.4.0 still hold and stay in the file comment; revisit when credits reset.
+  Public consumers (fork PRs on a shared pool) must pass `'["ubuntu-24.04"]'`.
+  (#88)
+
+- **`secret-scan.yml`, `dependabot-auto-merge.yml` and `lint-workflows.yml`
+  default `runs-on` to the self-hosted pool** for the same reason. An audit
+  of 201 reusable-workflow calls found 11 non-review calls still landing on
+  hosted runners, all `@v3` stubs that omitted `runs-on`, so flipping the
+  default fixes them on the next floating-tag move with no per-repo edits.
+  (#89)
+
 ### Fixed
 
 - `trivy-repo.yml` — install Trivy in an explicit, verified step instead of
@@ -1281,7 +1304,10 @@ README; everything below is the actual content of this repo.
 - Bumped `actions/checkout` from `@v4` to `@v6` across all existing
   workflows for consistency with new files.
 
-[Unreleased]: https://github.com/nkg/github-actions/compare/v3.3.0...HEAD
+[Unreleased]: https://github.com/nkg/github-actions/compare/v3.6.0...HEAD
+[3.6.0]: https://github.com/nkg/github-actions/compare/v3.5.0...v3.6.0
+[3.5.0]: https://github.com/nkg/github-actions/compare/v3.4.0...v3.5.0
+[3.4.0]: https://github.com/nkg/github-actions/compare/v3.3.0...v3.4.0
 [3.3.0]: https://github.com/nkg/github-actions/compare/v3.2.1...v3.3.0
 [3.2.1]: https://github.com/nkg/github-actions/compare/v3.2.0...v3.2.1
 [3.2.0]: https://github.com/nkg/github-actions/compare/v3.1.0...v3.2.0
