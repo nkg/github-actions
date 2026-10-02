@@ -6,6 +6,21 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ## [Unreleased]
 
+### Fixed
+
+- **`docker-build.yml` no longer tags an image before Trivy has scanned it.**
+  The build pushed with its tags (including `latest`) and only then ran the
+  failing scan, so a red gate still left the rejected image live: on
+  `HordiaLabs/extractor-llm` an image with two HIGH findings carried `latest`
+  and `main` for a day. The build now pushes by digest with no tags, the scan
+  runs against that digest, and a new "Tag the scanned digest" step applies
+  the tags with `docker buildx imagetools create` only if it passes. Cosign
+  moves below the scan too, so a signature is only issued for an image that
+  passed. Multi-arch safe; no input or output changes. The untagged digest of
+  a failed build stays in the registry until GC but nothing resolves to it.
+  Callers that pass `run-trivy-scan: false` see the same tags as before, one
+  step later. (#87)
+
 ## [3.6.0] - 2026-09-21
 
 ### Changed
