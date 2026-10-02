@@ -60,7 +60,7 @@ on:
         type: string
         default: ""
       run-trivy-scan:
-        description: "Scan the built image with Trivy after push. Requires push: true."
+        description: "Scan the built image with Trivy. The image is pushed by digest, scanned, and only tagged (and signed) if the scan passes. Requires push: true."
         type: boolean
         default: false
       trivy-severity:
@@ -194,15 +194,25 @@ jobs:
           lower="$(printf '%s/%s' "$REGISTRY" "$IMAGE_NAME" | tr '[:upper:]' '[:lower:]')"
           echo "repo=${lower}" >> "$GITHUB_OUTPUT"
 
-      - name: Build & push
+      # Push by digest only — no tags yet. The image reaches the registry so
+      # Trivy, cosign and the SBOM generator can address it, but nothing
+      # *resolves* to it until the "Tag the scanned digest" step below. Tagging
+      # here (as this step did through v3.6.0) meant a build that failed the
+      # scan had already moved `latest`, and consumers pulled the image the
+      # gate rejected (#87).
+      #
+      # `push:` is deliberately not set: it is shorthand for a second
+      # `type=registry` output, which has no name once `tags` is gone. The
+      # `outputs` line is the only exporter; when push is false it is empty and
+      # the result stays in the build cache, exactly as before.
+      - name: Build & push by digest
         id: build
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
           context: ${{ inputs.context }}
           file: ${{ inputs.dockerfile }}
           platforms: ${{ inputs.platforms }}
-          push: ${{ inputs.push }}
-          tags: ${{ steps.meta.outputs.tags }}
+          outputs: ${{ inputs.push && format('type=image,name={0},push-by-digest=true,name-canonical=true,push=true', steps.imageref.outputs.repo) || '' }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: ${{ inputs.build-args }}
           # Caller-supplied build-secrets plus, when deps-reader is configured,
@@ -214,9 +224,52 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # Cosign + Trivy + SBOM operate on the pushed image by digest. When
-      # push: false (PR builds), nothing reached the registry, so they
-      # short-circuit with a notice rather than failing.
+      # Trivy + tagging + cosign + SBOM operate on the pushed image by digest.
+      # When push: false (PR builds), nothing reached the registry, so they
+      # are skipped.
+      #
+      # Order matters: the failing scan runs first, and the tags and signature
+      # are only issued for a digest that passed it.
+
+      - name: Trivy scan (fail on findings)
+        if: inputs.run-trivy-scan && inputs.push
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ steps.imageref.outputs.repo }}@${{ steps.build.outputs.digest }}
+          format: table
+          exit-code: '1'
+          severity: ${{ inputs.trivy-severity }}
+          ignore-unfixed: ${{ inputs.trivy-ignore-unfixed }}
+
+      # Point every tag at the digest that was just scanned. `imagetools
+      # create` writes registry-side manifests only (no pull, no rebuild), so
+      # it is multi-arch safe. With a single source it reuses the source
+      # descriptor, so the tag resolves to the same digest; that is asserted
+      # rather than assumed because cosign and the job's `digest` output both
+      # depend on it.
+      - name: Tag the scanned digest
+        if: inputs.push
+        shell: bash
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+          REPO: ${{ steps.imageref.outputs.repo }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          set -euo pipefail
+          if [ -z "$DIGEST" ]; then
+            echo "::error::build produced no digest; refusing to tag" >&2
+            exit 1
+          fi
+          while IFS= read -r tag; do
+            [ -z "$tag" ] && continue
+            echo "tagging $tag -> $DIGEST"
+            docker buildx imagetools create --tag "$tag" "${REPO}@${DIGEST}"
+            got="$(docker buildx imagetools inspect "$tag" --format '{{.Manifest.Digest}}')"
+            if [ "$got" != "$DIGEST" ]; then
+              echo "::error::$tag resolves to $got, expected $DIGEST" >&2
+              exit 1
+            fi
+          done <<< "$TAGS"
 
       - name: Sign with cosign
         if: inputs.sign-image && inputs.push
@@ -235,16 +288,6 @@ jobs:
             echo "signing $tag@$DIGEST"
             cosign sign --yes "${tag}@${DIGEST}"
           done <<< "$TAGS"
-
-      - name: Trivy scan (fail on findings)
-        if: inputs.run-trivy-scan && inputs.push
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        with:
-          image-ref: ${{ steps.imageref.outputs.repo }}@${{ steps.build.outputs.digest }}
-          format: table
-          exit-code: '1'
-          severity: ${{ inputs.trivy-severity }}
-          ignore-unfixed: ${{ inputs.trivy-ignore-unfixed }}
 
       # Guarded by `upload-sarif` for the same reason trivy-repo.yml is: uploading
       # to code scanning needs GitHub Advanced Security, which private repos on
