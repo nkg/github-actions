@@ -82,7 +82,7 @@ on:
           rather than left to the action's own default so a scan cannot start
           reporting differently because upstream moved.
         type: string
-        default: "v0.70.0"
+        default: "v0.75.0"
       timeout-minutes:
         type: number
         default: 15
