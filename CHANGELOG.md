@@ -6,6 +6,8 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ## [Unreleased]
 
+## [3.7.0] - 2026-10-19
+
 ### Changed
 
 - **Public repos always get GitHub-hosted runners from `secret-scan.yml`,
@@ -21,7 +23,7 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
   on every run. Self-hosted would also have run fork PRs on our own hosts.
   Private callers are unchanged. An event with no `repository` in its payload
   falls back to the input, so public callers should keep passing a hosted
-  `runs-on`.
+  `runs-on`. (#93)
 
 ### Fixed
 
@@ -1336,7 +1338,8 @@ README; everything below is the actual content of this repo.
 - Bumped `actions/checkout` from `@v4` to `@v6` across all existing
   workflows for consistency with new files.
 
-[Unreleased]: https://github.com/nkg/github-actions/compare/v3.6.0...HEAD
+[Unreleased]: https://github.com/nkg/github-actions/compare/v3.7.0...HEAD
+[3.7.0]: https://github.com/nkg/github-actions/compare/v3.6.0...v3.7.0
 [3.6.0]: https://github.com/nkg/github-actions/compare/v3.5.0...v3.6.0
 [3.5.0]: https://github.com/nkg/github-actions/compare/v3.4.0...v3.5.0
 [3.4.0]: https://github.com/nkg/github-actions/compare/v3.3.0...v3.4.0
