@@ -7,7 +7,7 @@ on:
   workflow_call:
     inputs:
       runs-on:
-        description: "Runner label(s) as a JSON array string (parsed with fromJSON). Defaults to the self-hosted pool. Public/open-source repos opt out by passing '[\"ubuntu-latest\"]'."
+        description: "Runner label(s) as a JSON array string (parsed with fromJSON). Defaults to the self-hosted pool. Ignored for public repos, which always run on '[\"ubuntu-latest\"]'."
         type: string
         # Self-hosted by default since 2026-09-20. Actions credits are
         # exhausted across HordiaLabs, Sproncy and Regularmusic, so a hosted
@@ -17,9 +17,16 @@ on:
         # running nothing at all: 1 call (Sproncy/agent-skills).
         #
         # Every other consumer already passes `runs-on` explicitly, so this
-        # changes behaviour only for those that did not. Public repos should
-        # pass '["ubuntu-latest"]' -- fork PRs on a self-hosted pool are the
-        # hazard GitHub warns about; no public repo consumes this today.
+        # changes behaviour only for those that did not.
+        #
+        # Public repos never use this input. The job's runs-on forces
+        # ["ubuntu-latest"] whenever github.event.repository.visibility is
+        # "public": fork PRs on a self-hosted pool are the hazard GitHub
+        # warns about, hosted minutes are free there, and a public caller
+        # that omits `runs-on` would otherwise queue for 24h on a pool with
+        # no runner registered. An event whose payload carries no
+        # repository object falls back to this input, so public callers
+        # should still pass a hosted `runs-on` as well.
         default: '["self-hosted", "linux", "x64"]'
       actionlint-version:
         type: string
@@ -39,7 +46,7 @@ on:
 
 jobs:
   actionlint:
-    runs-on: ${{ fromJSON(inputs.runs-on) }}
+    runs-on: ${{ fromJSON(github.event.repository.visibility == 'public' && '["ubuntu-latest"]' || inputs.runs-on) }}
     timeout-minutes: 10
     permissions:
       contents: read
@@ -68,7 +75,7 @@ jobs:
 
   yamllint:
     if: inputs.run-yamllint
-    runs-on: ${{ fromJSON(inputs.runs-on) }}
+    runs-on: ${{ fromJSON(github.event.repository.visibility == 'public' && '["ubuntu-latest"]' || inputs.runs-on) }}
     timeout-minutes: 10
     permissions:
       contents: read
