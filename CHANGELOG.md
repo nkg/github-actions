@@ -6,6 +6,23 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ## [Unreleased]
 
+### Changed
+
+- **Public repos always get GitHub-hosted runners from `secret-scan.yml`,
+  `lint-workflows.yml`, `dependabot-auto-merge.yml` and
+  `claude-code-review.yml`.** Each job's `runs-on` now overrides the input
+  with `["ubuntu-latest"]` (`["ubuntu-24.04"]` for the review) whenever
+  `github.event.repository.visibility` is `public`. The comments added in
+  3.6.0 said no public repo consumes these, which was wrong: nine `nkg/*`
+  public repos call `secret-scan` or `lint-workflows`. The ones that left
+  `runs-on` unset (`lint-workflows` in `nkg/gha-token-server` and
+  `nkg/distrobuilder-proxmox-lxc-images`), or had no self-hosted runner
+  registered (`nkg/gha-nomad-dispatcher`), queued for 24h and were cancelled
+  on every run. Self-hosted would also have run fork PRs on our own hosts.
+  Private callers are unchanged. An event with no `repository` in its payload
+  falls back to the input, so public callers should keep passing a hosted
+  `runs-on`.
+
 ### Fixed
 
 - **`docker-build.yml` no longer tags an image before Trivy has scanned it.**

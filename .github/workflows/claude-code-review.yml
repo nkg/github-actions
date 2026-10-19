@@ -7,7 +7,7 @@ on:
   workflow_call:
     inputs:
       runs-on:
-        description: "Runner label(s) as a JSON array string (parsed with fromJSON). Defaults to the self-hosted pool. Public/open-source repos opt out by passing '[\"ubuntu-24.04\"]'."
+        description: "Runner label(s) as a JSON array string (parsed with fromJSON). Defaults to the self-hosted pool. Ignored for public repos, which always run on '[\"ubuntu-24.04\"]'."
         type: string
         # Self-hosted by default since 2026-09-20, matching claude.yml.
         #
@@ -34,11 +34,14 @@ on:
         # advisory regardless: the claude-code-action step below is
         # continue-on-error, so it cannot block a PR on either runner.
         #
-        # PUBLIC REPOS SHOULD OPT OUT, and not only for the free minutes:
-        # running fork PRs on a self-hosted pool is the hazard GitHub warns
-        # about. No public repo consumes this reusable today (checked across
-        # the three orgs and nkg/*), so the default is safe as it stands --
-        # but a new public consumer must pass '["ubuntu-24.04"]'.
+        # PUBLIC REPOS never use this input. The job's runs-on forces
+        # ["ubuntu-24.04"] whenever github.event.repository.visibility is
+        # "public": fork PRs on a self-hosted pool are the hazard GitHub
+        # warns about, hosted minutes are free there, and a public caller
+        # that omits `runs-on` would otherwise queue for 24h on a pool with
+        # no runner registered. An event whose payload carries no
+        # repository object falls back to this input, so public callers
+        # should still pass a hosted `runs-on` as well.
         #
         # Revisit when credits reset; hosted is the right default the moment
         # it can actually start a job.
@@ -87,7 +90,7 @@ jobs:
         contains(inputs.filter-authors, github.event.pull_request.user.login) ||
         (inputs.filter-first-time-only && (github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR' || github.event.pull_request.author_association == 'FIRST_TIMER'))
       )
-    runs-on: ${{ fromJSON(inputs.runs-on) }}
+    runs-on: ${{ fromJSON(github.event.repository.visibility == 'public' && '["ubuntu-24.04"]' || inputs.runs-on) }}
     timeout-minutes: ${{ inputs.timeout-minutes }}
     # `claude-code-action` posts review comments back on the PR, so it
     # needs write on pull-requests and issues. The `claude.yml` (bot)
