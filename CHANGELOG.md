@@ -13,7 +13,7 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
   `claude-code-review.yml`.** Each job's `runs-on` now overrides the input
   with `["ubuntu-latest"]` (`["ubuntu-24.04"]` for the review) whenever
   `github.event.repository.visibility` is `public`. The comments added in
-  3.6.0 said no public repo consumes these, which was wrong: nine `nkg/*`
+  3.6.0 said no public repo consumes these, which was wrong: six `nkg/*`
   public repos call `secret-scan` or `lint-workflows`. The ones that left
   `runs-on` unset (`lint-workflows` in `nkg/gha-token-server` and
   `nkg/distrobuilder-proxmox-lxc-images`), or had no self-hosted runner
