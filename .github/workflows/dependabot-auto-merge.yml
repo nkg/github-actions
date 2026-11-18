@@ -67,19 +67,114 @@ on:
           fires after CI has already passed. Works on the Free plan.
         type: boolean
         default: true
+      required-workflows:
+        description: |
+          workflow_run path only. Workflow FILENAMES (space- or newline-
+          separated, e.g. "ci.yml secret-scan.yml") that must all have a
+          successful pull_request run for the PR's head commit before it is
+          merged. A workflow_run trigger fires per workflow, so without this
+          the first one to go green merges while the others are still
+          running, and on the Free plan no branch protection catches it.
+          List every one of them in the caller's `on.workflow_run.workflows`
+          too, by display name: the gate re-runs on each completion and the
+          last one merges. The caller's job must grant `actions: read`.
+          Empty (default): no gate, as before.
+        type: string
+        default: ""
+      optional-workflows:
+        description: |
+          Like required-workflows, for path-filtered workflows: no run, or a
+          run whose jobs were all skipped, is fine, but a run that exists
+          must have succeeded.
+        type: string
+        default: ""
 
 jobs:
+  # Runs only when the caller names required workflows. It declares no
+  # permissions, so it gets the caller's job grant: `actions: read` is needed
+  # to read sibling runs, and a caller that doesn't use the gate is not asked
+  # for it (a permission declared here would be checked for every caller).
+  gate:
+    if: |
+      inputs.required-workflows != '' &&
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.actor.login == 'dependabot[bot]'
+    runs-on: ${{ fromJSON(github.event.repository.visibility == 'public' && '["ubuntu-latest"]' || inputs.runs-on) }}
+    timeout-minutes: 5
+    outputs:
+      proceed: ${{ steps.check.outputs.proceed }}
+    steps:
+      - name: Require every listed workflow to have passed for this commit
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+          REQUIRED: ${{ inputs.required-workflows }}
+          OPTIONAL: ${{ inputs.optional-workflows }}
+        # tests/dependabot-gate.test.sh runs this block verbatim; keep it the
+        # only `run:` in this job.
+        run: |
+          set -euo pipefail
+          proceed=true
+          # The inputs are lists of filenames; fold newlines and runs of blanks
+          # into single spaces, so the " $list " matches below work.
+          required=$(printf '%s' "$REQUIRED" | tr -s '[:space:]' ' ')
+          optional=$(printf '%s' "$OPTIONAL" | tr -s '[:space:]' ' ')
+          for wf in $required $optional; do
+            # A failed query must not read as "no run": fail closed.
+            if ! run=$(gh api \
+              "repos/$REPO/actions/workflows/$wf/runs?head_sha=$SHA&event=pull_request&per_page=1" \
+              --jq '.workflow_runs[0] | select(.) | "\(.status) \(.conclusion // "-")"'); then
+              echo "::error::could not query $wf (does the caller's job grant actions: read?); blocking auto-merge"
+              proceed=false
+              continue
+            fi
+            if [ -z "$run" ]; then
+              case " $required " in
+                # Usually it just hasn't started yet; its own completion
+                # re-evaluates. A notice, not an error: this blocks either way.
+                *" $wf "*) echo "::notice::$wf has no run for this commit yet; blocking auto-merge"; proceed=false ;;
+                *) echo "$wf: no run for this commit; not required" ;;
+              esac
+              continue
+            fi
+            echo "$wf: $run"
+            case "$run" in
+              "completed success") ;;
+              # A path-filtered workflow can run with its jobs skipped for
+              # Dependabot (a job-level if:), which concludes "skipped". For an
+              # optional workflow that is the same as no run.
+              "completed skipped")
+                case " $optional " in
+                  *" $wf "*) echo "$wf: skipped for this commit; not required" ;;
+                  *) echo "::notice::$wf was skipped; blocking auto-merge"; proceed=false ;;
+                esac ;;
+              completed*) echo "::notice::$wf did not succeed; blocking auto-merge"; proceed=false ;;
+              *) echo "::notice::$wf still running; its completion will re-evaluate"; proceed=false ;;
+            esac
+          done
+          echo "proceed=$proceed" >> "$GITHUB_OUTPUT"
+
   auto-merge:
+    needs: gate
     # Accept a direct pull_request trigger, or a workflow_run trigger that
     # fired for a successful Dependabot pull_request CI run (the Free-plan
     # path — workflow_run runs in the base-repo context with a full token,
     # unlike the restricted token on the dependabot PR run itself).
+    # always() so a skipped gate (no required-workflows, or the pull_request
+    # path) still lets this run; a failed or blocking gate stops it.
     if: |
-      (github.event_name == 'pull_request' && github.actor == 'dependabot[bot]') ||
-      (github.event_name == 'workflow_run' &&
-       github.event.workflow_run.event == 'pull_request' &&
-       github.event.workflow_run.conclusion == 'success' &&
-       github.event.workflow_run.actor.login == 'dependabot[bot]')
+      always() &&
+      (needs.gate.result == 'skipped' ||
+       (needs.gate.result == 'success' && needs.gate.outputs.proceed == 'true')) &&
+      ((github.event_name == 'pull_request' && github.actor == 'dependabot[bot]') ||
+       (github.event_name == 'workflow_run' &&
+        github.event.workflow_run.event == 'pull_request' &&
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.actor.login == 'dependabot[bot]'))
     runs-on: ${{ fromJSON(github.event.repository.visibility == 'public' && '["ubuntu-latest"]' || inputs.runs-on) }}
     timeout-minutes: 10
     permissions:

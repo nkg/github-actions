@@ -6,6 +6,24 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ## [Unreleased]
 
+### Added
+
+- **`dependabot-auto-merge.yml` can gate the `workflow_run` path on every
+  workflow that must pass** (`required-workflows`, plus `optional-workflows`
+  for path-filtered ones). A `workflow_run` trigger fires once per workflow,
+  so the first one to go green merged the PR while the rest were still
+  running; and callers still on the default `pull_request` + `--auto` path
+  merged at once on private Free-plan repos, which have no required checks
+  for `--auto` to wait for (sproncy-website-scrapers #646 merged 11 s after
+  its CI started, with tests failing). The gate checks each listed workflow's
+  run for the PR's head commit and fails closed: a missing required run, a
+  running, failed, cancelled or skipped one, or an API error blocks; an
+  optional one may be absent or skipped. It is a separate job that declares
+  no permissions, so only callers that use it grant `actions: read`; with
+  the inputs empty nothing changes. Replaces the inline gate job eleven
+  callers copied. Tested by `tests/dependabot-gate.test.sh`, which runs the
+  gate script verbatim against a fake `gh`.
+
 ## [3.7.0] - 2026-10-19
 
 ### Changed
