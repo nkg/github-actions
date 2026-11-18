@@ -669,19 +669,33 @@ jobs:
 name: Dependabot auto-merge
 on:
   workflow_run:
-    workflows: [CI]
+    # Every workflow in required-/optional-workflows, by display name.
+    workflows: [CI, Secret scan]
     types: [completed]
+    branches: ["dependabot/**"]
+permissions: {}
+# Serialise per commit, so two workflows finishing together don't race.
+concurrency:
+  group: dependabot-auto-merge-${{ github.event.workflow_run.head_sha }}
+  cancel-in-progress: false
 jobs:
   merge:
-    # workflow_run runs with the repo default token; if that's read-only
-    # (the safe org default), grant write here so the reusable can merge.
+    # workflow_run runs with the repo default token; grant write so the
+    # reusable can merge, and actions: read so its gate can read the runs.
     permissions:
       contents: write
       pull-requests: write
+      actions: read
     uses: nkg/github-actions/.github/workflows/dependabot-auto-merge.yml@v3
     with:
       use-auto-merge: false
+      # Filenames. All must have passed for the PR's commit before it merges.
+      required-workflows: ci.yml secret-scan.yml
+      # Path-filtered ones: no run, or skipped, is fine.
+      # optional-workflows: docs.yml
 ```
+
+**Name every workflow that must pass in `required-workflows`.** A `workflow_run` trigger fires once per workflow, so without the gate the first workflow to go green merges the PR while the others are still running, and on the Free plan no branch protection stops it. The gate re-runs on each completion and the last one to finish merges. It fails closed: a missing required run, a still-running or failed one, or an API error blocks. A path-filtered workflow belongs in `optional-workflows`. It needs `actions: read` on the calling job; callers that don't pass the inputs don't need it, and nothing changes for them.
 
 The `if:` guard (Dependabot actor + successful run) lives inside the reusable, so the stub stays this small. Major-bump gating on this path is best-effort from the PR title: **grouped** updates can't be classified from the title and are treated as non-major. Keep majors manual where that matters, or set `auto-merge-major: true` to merge them too.
 
