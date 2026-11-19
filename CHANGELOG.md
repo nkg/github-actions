@@ -6,6 +6,8 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
 
 ## [Unreleased]
 
+## [3.8.0] - 2026-11-19
+
 ### Added
 
 - **`dependabot-auto-merge.yml` can gate the `workflow_run` path on every
@@ -22,7 +24,7 @@ project uses [SemVer](https://semver.org/) for the `vMAJOR.MINOR.PATCH` tags.
   no permissions, so only callers that use it grant `actions: read`; with
   the inputs empty nothing changes. Replaces the inline gate job eleven
   callers copied. Tested by `tests/dependabot-gate.test.sh`, which runs the
-  gate script verbatim against a fake `gh`.
+  gate script verbatim against a fake `gh`. (#94)
 
 ## [3.7.0] - 2026-10-19
 
@@ -1356,7 +1358,8 @@ README; everything below is the actual content of this repo.
 - Bumped `actions/checkout` from `@v4` to `@v6` across all existing
   workflows for consistency with new files.
 
-[Unreleased]: https://github.com/nkg/github-actions/compare/v3.7.0...HEAD
+[Unreleased]: https://github.com/nkg/github-actions/compare/v3.8.0...HEAD
+[3.8.0]: https://github.com/nkg/github-actions/compare/v3.7.0...v3.8.0
 [3.7.0]: https://github.com/nkg/github-actions/compare/v3.6.0...v3.7.0
 [3.6.0]: https://github.com/nkg/github-actions/compare/v3.5.0...v3.6.0
 [3.5.0]: https://github.com/nkg/github-actions/compare/v3.4.0...v3.5.0
